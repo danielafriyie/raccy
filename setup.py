@@ -26,12 +26,13 @@ setuptools.setup(
     description="Web Scraping Library Based on Selenium",
     long_description=long_des,
     long_description_content_type="text/markdown",
-    url="",
+    url="https://github.com/danielafriyie/scrawler",
     classifiers=[
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
         'Topic :: Software Development :: Libraries :: Application Frameworks',
         'Topic :: Software Development :: Libraries :: Python Modules',
+        'Development Status :: 5 - Production/Stable'
     ],
     packages=setuptools.find_packages(exclude=exclude),
     install_requires=install_requires,
