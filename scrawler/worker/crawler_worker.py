@@ -3,10 +3,10 @@ from queue import Empty
 
 from selenium.common.exceptions import TimeoutException
 
-from scheduler.scheduler import DatabaseScheduler, ItemUrlScheduler
-from utils.utils import download_delay
-from utils.driver import close_driver
-from logger.logger import logger
+from scrawler.scheduler.scheduler import DatabaseScheduler, ItemUrlScheduler
+from scrawler.utils.utils import download_delay
+from scrawler.utils.driver import close_driver
+from scrawler.logger.logger import logger
 
 
 class CrawlerWorker(Thread):

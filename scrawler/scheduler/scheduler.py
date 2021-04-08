@@ -1,7 +1,7 @@
 from queue import Queue
 from threading import Lock
 
-from utils.meta import SingletonMeta
+from scrawler.utils.meta import SingletonMeta
 
 
 class BaseScheduler(metaclass=SingletonMeta):

@@ -6,10 +6,11 @@ from .worker.url_downloader_worker import UrlDownloaderWorker
 from .worker.crawler_worker import CrawlerWorker
 from .worker.database_worker import DatabaseWorker
 
-__version__ = '0.1'
+__version__ = '1.0.0'
 __author__ = 'Daniel Afriyie'
 __author_email__ = 'afriyiedaniel1@outlook.com'
 
 __all__ = [
-    '__version__', 'ItemUrlScheduler', 'DatabaseScheduler', 'UrlDownloaderWorker', 'CrawlerWorker', 'DatabaseWorker'
+    '__version__', '__author__', '__author_email__',
+    'ItemUrlScheduler', 'DatabaseScheduler', 'UrlDownloaderWorker', 'CrawlerWorker', 'DatabaseWorker'
 ]

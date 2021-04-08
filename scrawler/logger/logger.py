@@ -1,8 +1,8 @@
 import logging
 import os
 
-from utils.config import BASE_DIR
-from utils.utils import check_path_exists
+from scrawler.utils.config import BASE_DIR
+from scrawler.utils.utils import check_path_exists
 
 
 class _Logger:

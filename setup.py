@@ -1,5 +1,5 @@
 import setuptools
-from .scrawler import __version__, __author__, __author_email__
+from scrawler import __version__, __author__, __author_email__
 
 with open('README.md', 'r', encoding='utf-8') as f:
     long_des = f.read()
@@ -34,6 +34,7 @@ setuptools.setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Development Status :: 5 - Production/Stable'
     ],
+    package_dir={"": "scrawler"},
     packages=setuptools.find_packages(exclude=exclude),
     install_requires=install_requires,
     python_requires=">=3.7",

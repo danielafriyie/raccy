@@ -1,6 +1,6 @@
 from threading import Thread
 
-from scheduler.scheduler import DatabaseScheduler
+from scrawler.scheduler.scheduler import DatabaseScheduler
 
 
 class DatabaseWorker(Thread):

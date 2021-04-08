@@ -2,9 +2,9 @@ from threading import Thread
 
 from selenium.common.exceptions import WebDriverException
 
-from utils.driver import close_popup_handler, next_btn_handler, close_driver
-from scheduler.scheduler import ItemUrlScheduler
-from logger.logger import logger
+from scrawler.utils.driver import close_popup_handler, next_btn_handler, close_driver
+from scrawler.scheduler.scheduler import ItemUrlScheduler
+from scrawler.logger.logger import logger
 
 
 class UrlDownloaderWorker(Thread):
