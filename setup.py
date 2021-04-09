@@ -17,7 +17,7 @@ exclude = (
 )
 
 setuptools.setup(
-    name="Scrawler",  # Replace with your own username
+    name="Scrawler",
     version=__version__,
     author=__author__,
     author_email=__author_email__,
@@ -28,13 +28,12 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/danielafriyie/scrawler",
     classifiers=[
-        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.7",
         "Operating System :: OS Independent",
         'Topic :: Software Development :: Libraries :: Application Frameworks',
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Development Status :: 5 - Production/Stable'
     ],
-    package_dir={"": "scrawler"},
     packages=setuptools.find_packages(exclude=exclude),
     install_requires=install_requires,
     python_requires=">=3.7",

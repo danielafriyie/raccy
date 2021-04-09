@@ -17,3 +17,6 @@ scrawler/screenshots
 scrawler/env
 scrawler/bunny
 scrawler/logs
+build
+dist
+Scrawler.egg-info
