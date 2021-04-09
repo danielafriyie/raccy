@@ -10,7 +10,7 @@ class _Logger:
     Base Logger class
     """
 
-    def __init__(self, name=None, fmt=None, filename=None):
+    def __init__(self, name: str = None, fmt: str = None, filename: str = None):
         self._path = os.path.join(BASE_DIR, 'logs')
         if not check_path_exists(self._path):
             os.mkdir(self._path)
@@ -47,6 +47,6 @@ class _Logger:
         return self._logger
 
 
-def logger(name=None, fmt=None, filename=None):
+def logger(name: str = None, fmt: str = None, filename: str = None):
     logger_ = _Logger(name, fmt, filename)
     return logger_()

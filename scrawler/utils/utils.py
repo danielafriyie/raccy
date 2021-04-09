@@ -3,11 +3,11 @@ from random import randint
 from time import sleep
 
 
-def check_path_exists(path, isfile=False):
+def check_path_exists(path: str, isfile=False) -> bool:
     return os.path.isfile(path) if isfile else os.path.exists(path)
 
 
-def random_delay(a, b):
+def random_delay(a: int, b: int) -> None:
     sleep(randint(a, b))
 
 
