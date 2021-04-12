@@ -20,3 +20,5 @@ scrawler/logs
 build
 dist
 Scrawler.egg-info
+*.pyc
+*.pyi

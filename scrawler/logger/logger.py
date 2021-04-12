@@ -1,8 +1,4 @@
 import logging
-import os
-
-from scrawler.utils.config import BASE_DIR
-from scrawler.utils.utils import check_path_exists
 
 
 class _Logger:
@@ -11,37 +7,31 @@ class _Logger:
     """
 
     def __init__(self, name: str = None, fmt: str = None, filename: str = None):
-        self._path = os.path.join(BASE_DIR, 'logs')
-        if not check_path_exists(self._path):
-            os.mkdir(self._path)
-
         self.name = name if name else __name__
         self.fmt = fmt if fmt else '%(asctime)s:%(levelname)s:%(message)s'
-        self.filename = filename if filename else 'event.log'
+        self.filename = filename if filename else 'scrawler.log'
 
         self._logger = logging.getLogger(name)
         self._logger.setLevel(level=logging.DEBUG)
 
-        self._log_file_manager()
+        # self._log_file_manager()
 
         formatter = logging.Formatter(self.fmt)
-        file_handler = logging.FileHandler(f'{self._path}/{self.filename}')
+        file_handler = logging.FileHandler(self.filename)
         file_handler.setFormatter(formatter)
         file_handler.setLevel(logging.DEBUG)
 
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(formatter)
+
         self._logger.addHandler(file_handler)
+        self._logger.addHandler(stream_handler)
 
     def _log_file_manager(self):
         """
         check if the log file is more thn 10mb then it deletes it
         """
-        path = f'{self._path}/{self.filename}'
-        if os.path.exists(path):
-            if os.path.getsize(path) > 10485760:
-                try:
-                    os.remove(path)
-                except PermissionError as e:
-                    self._logger.exception(e)
+        raise NotImplementedError(f'{self.__class__.__name__}._log_file_manager() method is not implemented!')
 
     def __call__(self):
         return self._logger

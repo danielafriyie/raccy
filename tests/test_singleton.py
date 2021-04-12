@@ -1,6 +1,12 @@
 import unittest
 from random import randint
-from scheduler.scheduler import ItemUrlScheduler, DatabaseScheduler
+import os
+import sys
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(BASE_DIR)
+
+from scrawler import ItemUrlScheduler, DatabaseScheduler
 
 
 class TestSingleton(unittest.TestCase):
@@ -9,6 +15,9 @@ class TestSingleton(unittest.TestCase):
     def setUpClass(cls):
         cls.ds1, cls.ds2, cls.ds3 = DatabaseScheduler(), DatabaseScheduler(), DatabaseScheduler()
         cls.is1, cls.is2 = ItemUrlScheduler(), ItemUrlScheduler()
+
+    def tearDownClass(cls):
+        pass
 
     def test_single_instance(self):
         self.assertEqual(self.ds1, self.ds2)
@@ -41,6 +50,9 @@ class TestSingleton(unittest.TestCase):
             self.ds3.get()
             self.is1.get()
             self.ds1.get()
+            self.ds3.task_done()
+            self.is1.task_done()
+            self.ds1.task_done()
         self.assertEqual(self.ds1.queue(), self.ds2.queue())
         self.assertEqual(self.ds1.qsize(), self.ds2.qsize())
         self.assertEqual(self.ds3.qsize(), self.ds2.qsize())
@@ -72,3 +84,7 @@ class TestSingleton(unittest.TestCase):
         self.assertNotEqual(self.ds1.queue(), self.is2.queue())
         self.assertNotEqual(self.ds2.queue(), self.is1.queue())
         self.assertNotEqual(self.ds2.queue(), self.is2.queue())
+
+
+if __name__ == '__main__':
+    unittest.main()

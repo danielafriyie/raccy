@@ -1,5 +1,5 @@
 from threading import Thread
-from typing import Optional, Iterable, Iterator
+from typing import Union, Iterable, Iterator
 from queue import Queue
 
 from selenium.common.exceptions import WebDriverException
@@ -20,16 +20,16 @@ class UrlDownloaderWorker(Thread):
     start_url: str = None
     url_xpath: str = None
     next_btn: str = None
-    scheduler: Optional[ItemUrlScheduler, BaseScheduler, Queue] = ItemUrlScheduler(maxsize=MAX_ITEM_DOWNLOAD)
+    scheduler: Union[ItemUrlScheduler, BaseScheduler, Queue] = ItemUrlScheduler(maxsize=MAX_ITEM_DOWNLOAD)
     urls_scraped: int = 0
-    _logger = logger(filename='urldownloader.log')
+    _logger = logger()
     popup: str = None
 
-    def __init__(self, driver: Optional[Chrome, Firefox, Safari, Ie, Edge, Opera], *args, **kwargs):
+    def __init__(self, driver: Union[Chrome, Firefox, Safari, Ie, Edge, Opera], *args, **kwargs):
         Thread.__init__(self, *args, **kwargs)
         self.driver = driver
 
-    def get_urls(self) -> Optional[Iterable[str], Iterator[str]]:
+    def get_urls(self) -> Union[Iterable[str], Iterator[str]]:
         raise NotImplementedError(f"{self.__class__.__name__}.get_urls() method is not implemented")
 
     def job(self):

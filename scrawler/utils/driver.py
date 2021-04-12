@@ -3,7 +3,7 @@ Utility functions and classes for selenium webdriver
 """
 from time import sleep
 from urllib.parse import urljoin
-from typing import Optional, Callable
+from typing import Union, Callable
 from logging import Logger
 
 from selenium.common.exceptions import (
@@ -13,7 +13,7 @@ from selenium.webdriver import (
     Chrome, Firefox, Safari, Ie, Edge, Opera
 )
 
-Driver = Optional[Chrome, Firefox, Safari, Ie, Edge, Opera]
+Driver: Union[Chrome, Firefox, Safari, Ie, Edge, Opera] = ...
 
 
 def driver_wait(driver: Driver, xpath: str, secs=5) -> None:
