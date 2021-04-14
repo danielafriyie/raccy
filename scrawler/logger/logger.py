@@ -19,10 +19,11 @@ class _Logger:
         formatter = logging.Formatter(self.fmt)
         file_handler = logging.FileHandler(self.filename)
         file_handler.setFormatter(formatter)
-        file_handler.setLevel(logging.DEBUG)
+        file_handler.setLevel(logging.INFO)
 
         stream_handler = logging.StreamHandler()
         stream_handler.setFormatter(formatter)
+        stream_handler.setLevel(logging.INFO)
 
         self._logger.addHandler(file_handler)
         self._logger.addHandler(stream_handler)
