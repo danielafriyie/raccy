@@ -28,7 +28,11 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/danielafriyie/scrawler",
     classifiers=[
-        "Programming Language :: Python :: 3.7",
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         "Operating System :: OS Independent",
         'Topic :: Software Development :: Libraries :: Application Frameworks',
         'Topic :: Software Development :: Libraries :: Python Modules',
