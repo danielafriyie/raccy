@@ -45,7 +45,7 @@ class UrlDownloaderWorker(Thread):
             }
             self.scheduler.put(url_dict)
             self.urls_scraped += 1
-            self._logger.info(f"Total URLs scrped from {self.start_url}: {self.urls_scraped}", exc_info=1)
+            self._logger.info(f"Total URLs scraped from {self.start_url}: {self.urls_scraped}", exc_info=1)
         if self.next_btn:
             next_btn_handler(self.driver, self.next_btn)
             self.job()
