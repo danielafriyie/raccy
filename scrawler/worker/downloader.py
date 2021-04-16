@@ -1,5 +1,5 @@
 from threading import Thread
-from typing import Union, Iterable, Iterator
+from typing import Union, Iterable, Iterator, Optional
 from queue import Queue
 
 from selenium.common.exceptions import WebDriverException
@@ -16,14 +16,14 @@ class UrlDownloaderWorker(Thread):
     """
     Resonsible for downloading item(s) to be scraped urls and enqueue(s) them in ItemUrlScheduler
     """
-    MAX_ITEM_DOWNLOAD: int = 20
+    MAX_ITEM_DOWNLOAD: Optional[int] = 20
     start_url: str = None
     url_xpath: str = None
-    next_btn: str = None
+    next_btn: Optional[str] = None
     scheduler: Union[ItemUrlScheduler, BaseScheduler, Queue] = ItemUrlScheduler(maxsize=MAX_ITEM_DOWNLOAD)
     urls_scraped: int = 0
     _logger = logger()
-    popup: str = None
+    popup: Optional[str] = None
 
     def __init__(self, driver: Union[Chrome, Firefox, Safari, Ie, Edge, Opera], *args, **kwargs):
         Thread.__init__(self, *args, **kwargs)

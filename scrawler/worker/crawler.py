@@ -1,6 +1,6 @@
 from threading import Thread
 from queue import Empty, Queue
-from typing import Union
+from typing import Union, Optional
 
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver import (
@@ -17,7 +17,7 @@ class CrawlerWorker(Thread):
     """
     Fetches item web pages and scrapes or extract data and enqueues them in DatabaseScheduler
     """
-    url_wait_timeout: int = 10
+    url_wait_timeout: Optional[int] = 10
     scheduler: Union[ItemUrlScheduler, BaseScheduler, Queue] = ItemUrlScheduler()
     db_scheduler: Union[DatabaseScheduler, BaseScheduler, Queue] = DatabaseScheduler()
     _logger = logger()
@@ -45,7 +45,7 @@ class CrawlerWorker(Thread):
     def start_job(self) -> None:
         self.job()
 
-    def parse(self, url: str = None, n: int = None) -> None:
+    def parse(self, url: Optional[str] = None, n: Optional[int] = None) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.parse() method is not implemented")
 
     def run(self):

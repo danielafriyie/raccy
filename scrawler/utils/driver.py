@@ -3,7 +3,7 @@ Utility functions and classes for selenium webdriver
 """
 from time import sleep
 from urllib.parse import urljoin
-from typing import Union, Callable
+from typing import Union, Callable, Optional
 from logging import Logger
 
 from selenium.common.exceptions import (
@@ -68,7 +68,7 @@ def url_join(base: str, url: str, allow_fragments=True) -> str:
     return urljoin(base, url, allow_fragments)
 
 
-def close_driver(driver: Driver, logger: Logger = None) -> None:
+def close_driver(driver: Driver, logger: Optional[Logger] = None) -> None:
     try:
         driver.quit()
     except WebDriverException as e:
