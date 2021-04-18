@@ -17,3 +17,8 @@ def download_delay(a=1, b=5):
 
 def download_delay_per_block(a=1, b=10):
     return random_delay(a, b)
+
+
+def check_has_attr(obj, attr):
+    if not hasattr(obj, attr):
+        raise AttributeError(f'{obj} does not have {attr} attribute or method.')

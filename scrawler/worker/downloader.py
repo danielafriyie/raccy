@@ -10,6 +10,7 @@ from selenium.webdriver import (
 from scrawler.utils.driver import close_popup_handler, next_btn_handler, close_driver
 from scrawler.scheduler.scheduler import ItemUrlScheduler, BaseScheduler
 from scrawler.logger.logger import logger
+from scrawler.utils.forms import AuthForm
 
 
 class UrlDownloaderWorker(Thread):
@@ -22,8 +23,9 @@ class UrlDownloaderWorker(Thread):
     next_btn: Optional[str] = None
     scheduler: Union[ItemUrlScheduler, BaseScheduler, Queue] = ItemUrlScheduler(maxsize=MAX_ITEM_DOWNLOAD)
     urls_scraped: int = 0
-    _logger = logger()
+    log = logger()
     popup: Optional[str] = None
+    auth_form: Optional[AuthForm] = None
 
     def __init__(self, driver: Union[Chrome, Firefox, Safari, Ie, Edge, Opera], *args, **kwargs):
         Thread.__init__(self, *args, **kwargs)
@@ -45,18 +47,20 @@ class UrlDownloaderWorker(Thread):
             }
             self.scheduler.put(url_dict)
             self.urls_scraped += 1
-            self._logger.info(f"Total URLs scraped from {self.start_url}: {self.urls_scraped}", exc_info=1)
+            self.log.info(f"Total URLs scraped from {self.start_url}: {self.urls_scraped}", exc_info=1)
         if self.next_btn:
             next_btn_handler(self.driver, self.next_btn)
             self.job()
-        close_driver(self.driver, logger=self._logger)
+        close_driver(self.driver, logger=self.log)
 
     def start_job(self):
         try:
             self.driver.get(self.start_url)
+            if self.auth_form:
+                self.auth_form(driver=self.driver).login()
         except WebDriverException as e:
-            self._logger.exception(e)
-            close_driver(self.driver, self._logger)
+            self.log.exception(e)
+            close_driver(self.driver, self.log)
             return
         if self.popup:
             close_popup_handler(self.driver, self.popup)

@@ -1,6 +1,6 @@
 from threading import Thread
 from queue import Empty, Queue
-from typing import Union, Optional
+from typing import Union, Optional, Tuple
 
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver import (
@@ -20,7 +20,8 @@ class CrawlerWorker(Thread):
     url_wait_timeout: Optional[int] = 10
     scheduler: Union[ItemUrlScheduler, BaseScheduler, Queue] = ItemUrlScheduler()
     db_scheduler: Union[DatabaseScheduler, BaseScheduler, Queue] = DatabaseScheduler()
-    _logger = logger()
+    _download_delay: Tuple[int, int] = (1, 5)
+    log = logger()
 
     def __init__(self, driver: Union[Chrome, Firefox, Safari, Ie, Edge, Opera], *args, **kwargs):
         Thread.__init__(self, *args, **kwargs)
@@ -36,10 +37,10 @@ class CrawlerWorker(Thread):
                     continue
                 self.parse(url['url'], url['#'])
                 self.scheduler.task_done()
-                download_delay()
+                download_delay(*self._download_delay)
             except Empty as e:
-                self._logger.exception(e)
-                close_driver(self.driver, self._logger)
+                self.log.exception(e)
+                close_driver(self.driver, self.log)
                 return
 
     def start_job(self) -> None:

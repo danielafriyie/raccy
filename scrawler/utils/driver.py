@@ -1,7 +1,6 @@
 """
 Utility functions and classes for selenium webdriver
 """
-from time import sleep
 from urllib.parse import urljoin
 from typing import Union, Callable, Optional
 from logging import Logger
@@ -12,19 +11,25 @@ from selenium.common.exceptions import (
 from selenium.webdriver import (
     Chrome, Firefox, Safari, Ie, Edge, Opera
 )
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
+from .utils import check_has_attr
 
 Driver: Union[Chrome, Firefox, Safari, Ie, Edge, Opera] = ...
 
 
-def driver_wait(driver: Driver, xpath: str, secs=5) -> None:
-    for _ in range(secs):
-        try:
-            driver.find_element_by_xpath(xpath)
-            return
-        except WebDriverException:
-            sleep(1)
-            continue
-    return
+def driver_wait(
+        driver: Driver, xpath: str, secs=5, method: str = None, action: Optional[str] = None
+) -> None:
+    check_has_attr(EC, method)
+    wait = WebDriverWait(driver=driver, timeout=secs)
+    attr = getattr(EC, method)
+    until = wait.until(attr((By.XPATH, xpath)))
+    if action:
+        check_has_attr(until, action)
+        getattr(until, action)()
 
 
 def follow(
