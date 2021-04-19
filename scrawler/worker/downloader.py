@@ -19,7 +19,7 @@ class UrlDownloaderWorker(Thread):
     """
     MAX_ITEM_DOWNLOAD: Optional[int] = 20
     start_url: str = None
-    url_xpath: str = None
+    url_xpath: Optional[str] = None
     next_btn: Optional[str] = None
     scheduler: Union[ItemUrlScheduler, BaseScheduler, Queue] = ItemUrlScheduler(maxsize=MAX_ITEM_DOWNLOAD)
     urls_scraped: int = 0
@@ -31,27 +31,8 @@ class UrlDownloaderWorker(Thread):
         Thread.__init__(self, *args, **kwargs)
         self.driver = driver
 
-    def get_urls(self) -> Union[Iterable[str], Iterator[str]]:
-        raise NotImplementedError(f"{self.__class__.__name__}.get_urls() method is not implemented")
-
     def job(self):
-        for url in self.get_urls():
-            if self.max_reached():
-                self.next_btn = None
-                break
-            if not url:
-                continue
-            url_dict = {
-                '#': self.urls_scraped,
-                'url': url
-            }
-            self.scheduler.put(url_dict)
-            self.urls_scraped += 1
-            self.log.info(f"Total URLs scraped from {self.start_url}: {self.urls_scraped}", exc_info=1)
-        if self.next_btn:
-            next_btn_handler(self.driver, self.next_btn)
-            self.job()
-        close_driver(self.driver, logger=self.log)
+        raise NotImplementedError(f"{self.__class__.__name__}.job() method is not implemented")
 
     def start_job(self):
         try:
