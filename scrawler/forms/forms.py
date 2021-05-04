@@ -4,13 +4,15 @@ from selenium.webdriver import (
     Chrome, Firefox, Safari, Ie, Edge, Opera
 )
 
-from .driver import driver_wait
+from scrawler.utils.driver import driver_wait
+from scrawler.logger.logger import logger
 
 
 class BaseForm:
     FIELD_XPATH = str
     FIELD_VALUE = str
     fields: Dict[FIELD_XPATH, FIELD_VALUE]
+    log = logger()
 
 
 class AuthForm(BaseForm):

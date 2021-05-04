@@ -1,7 +1,5 @@
 import logging
 
-from scrawler.utils.meta import SingletonMeta
-
 
 class _Logger:
     """

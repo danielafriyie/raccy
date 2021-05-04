@@ -10,7 +10,7 @@ from selenium.webdriver import (
 from scrawler.utils.driver import close_popup_handler, next_btn_handler, close_driver
 from scrawler.scheduler.scheduler import ItemUrlScheduler, BaseScheduler
 from scrawler.logger.logger import logger
-from scrawler.utils.forms import AuthForm
+from scrawler.forms.forms import AuthForm
 
 
 class UrlDownloaderWorker(Thread):
