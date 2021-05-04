@@ -1,5 +1,5 @@
 from threading import Thread
-from typing import Union, Iterable, Iterator, Optional
+from typing import Union, Optional
 from queue import Queue
 
 from selenium.common.exceptions import WebDriverException
@@ -7,7 +7,7 @@ from selenium.webdriver import (
     Chrome, Firefox, Safari, Ie, Edge, Opera
 )
 
-from scrawler.utils.driver import close_popup_handler, next_btn_handler, close_driver
+from scrawler.utils.driver import close_popup_handler, close_driver
 from scrawler.scheduler.scheduler import ItemUrlScheduler, BaseScheduler
 from scrawler.logger.logger import logger
 from scrawler.forms.forms import AuthForm
@@ -21,7 +21,7 @@ class UrlDownloaderWorker(Thread):
     start_url: str = None
     url_xpath: Optional[str] = None
     next_btn: Optional[str] = None
-    scheduler: Union[ItemUrlScheduler, BaseScheduler, Queue] = ItemUrlScheduler(maxsize=MAX_ITEM_DOWNLOAD)
+    scheduler: Union[ItemUrlScheduler, BaseScheduler, Queue] = ItemUrlScheduler()
     urls_scraped: int = 0
     log = logger()
     popup: Optional[str] = None
