@@ -11,6 +11,7 @@ from scrawler.scheduler.scheduler import DatabaseScheduler, ItemUrlScheduler, Ba
 from scrawler.utils.utils import download_delay
 from scrawler.utils.driver import close_driver
 from scrawler.logger.logger import logger
+from scrawler.forms.forms import AuthForm
 
 
 class CrawlerWorker(Thread):
@@ -22,12 +23,15 @@ class CrawlerWorker(Thread):
     db_scheduler: Union[DatabaseScheduler, BaseScheduler, Queue] = DatabaseScheduler()
     _download_delay: Tuple[int, int] = (1, 5)
     log = logger()
+    auth_form: Optional[AuthForm] = None
 
     def __init__(self, driver: Union[Chrome, Firefox, Safari, Ie, Edge, Opera], *args, **kwargs):
         Thread.__init__(self, *args, **kwargs)
         self.driver = driver
 
     def job(self):
+        if self.auth_form:
+            self.auth_form(driver=self.driver).login()
         while True:
             try:
                 url = self.scheduler.get(timeout=self.url_wait_timeout)

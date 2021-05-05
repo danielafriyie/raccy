@@ -22,3 +22,5 @@ dist
 Scrawler.egg-info
 *.pyc
 *.pyi
+info.txt
+database.db
