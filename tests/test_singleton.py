@@ -16,6 +16,7 @@ class TestSingleton(unittest.TestCase):
         cls.ds1, cls.ds2, cls.ds3 = DatabaseScheduler(), DatabaseScheduler(), DatabaseScheduler()
         cls.is1, cls.is2 = ItemUrlScheduler(), ItemUrlScheduler()
 
+    @classmethod
     def tearDownClass(cls):
         pass
 
