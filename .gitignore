@@ -23,4 +23,5 @@ Scrawler.egg-info
 *.pyc
 *.pyi
 info.txt
+projects.txt
 database.db
