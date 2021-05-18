@@ -20,9 +20,14 @@ class AuthForm(BaseForm):
     def __init__(self, driver: Union[Chrome, Firefox, Safari, Ie, Edge, Opera]):
         self.driver = driver
 
+    def set_fields(self):
+        self._fields = self.fields.copy()
+        return self._fields
+
     def fill_forms(self):
-        self.btn = self.fields.pop('button')
-        for field, value in self.fields.items():
+        self.set_fields()
+        self.btn = self._fields.pop('button')
+        for field, value in self._fields.items():
             driver_wait(self.driver, field, method='presence_of_element_located')
             self.driver.find_element_by_xpath(field).send_keys(value)
 
