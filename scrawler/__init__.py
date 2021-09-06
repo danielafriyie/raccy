@@ -6,7 +6,7 @@ from .worker.downloader import UrlDownloaderWorker
 from .worker.crawler import CrawlerWorker
 from .worker.database import DatabaseWorker
 
-__version__ = '1.0.3'
+__version__ = '2.0.3'
 __author__ = 'Daniel Afriyie'
 __author_email__ = 'afriyiedaniel1@outlook.com'
 

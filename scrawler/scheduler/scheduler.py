@@ -1,7 +1,6 @@
 from queue import Queue
-from threading import Lock
 
-from scrawler.utils.meta import SingletonMeta
+from scrawler.core.meta import SingletonMeta
 
 
 class BaseScheduler(metaclass=SingletonMeta):
@@ -37,25 +36,12 @@ class BaseScheduler(metaclass=SingletonMeta):
     def task_done(self):
         return self.__queue.task_done()
 
-    def save(self, filename):
-        with open(filename, 'w', encoding='utf-8') as f:
-            for data in self.queue():
-                d = str(data) + '\n'
-                f.write(d)
-
 
 class DatabaseScheduler(BaseScheduler):
     """
     Database Scheduler: receives scraped item data from spider worker(s) and enques them
     for feeding them to the database.
     """
-    items_enqueued = 0
-    mutex = Lock()
-
-    def put(self, item, *args, **kwargs):
-        with self.mutex:
-            self.items_enqueued += 1
-        super().put(item, *args, **kwargs)
 
 
 class ItemUrlScheduler(BaseScheduler):
