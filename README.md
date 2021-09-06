@@ -1,5 +1,5 @@
 # SCRAWLER
-Multithreaded web scraping library based on selenium.
+Multithreaded web scraping library based on selenium with built in orm feature.
 
 ### ARCHITECTURE
 
@@ -12,32 +12,6 @@ Multithreaded web scraping library based on selenium.
 - **Database Scheduler**: receives scraped item data from item downloader workers and enqueues them for feeding them to Database Worker.
 <br><br>
 - **Database Worker**: receives scraped data from database scheduler and stores it in a persistent database.
-
-
-### PROJECT STRUCTURE
-- **scrawler**
-    - `__init__.py`
-    - **logger**
-        - `__init__.py`
-        - logger.py
-    - **scheduler**
-        - `__init__.py`
-        - scheduler.py
-    - **utils**
-        - `__init__.py`
-        - config.py
-        - driver.py
-        - meta.py
-        - utils.py
-    - **worker**
-        - `__init__.py`
-        - crawler.py
-        - database.py
-        - downloader.py
-- **tests**
-- README.md
-- req.txt
-- setup.py
 
 ### Prerequisites
 1. python3 
