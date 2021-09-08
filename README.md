@@ -64,10 +64,7 @@ class Crawler(CrawlerWorker):
                 'quote': quote,
                 'author': author
             }
-            try:
-                self.log.info(data)
-            except UnicodeEncodeError:
-                pass
+            self.log.info(data)
             self.db_scheduler.put(data)
 
 
