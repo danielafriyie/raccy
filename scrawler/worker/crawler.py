@@ -1,17 +1,13 @@
 from threading import Thread
 from queue import Empty, Queue
-from typing import Union, Optional, Tuple
-
-from selenium.common.exceptions import TimeoutException
+from typing import Union, Optional
 from selenium.webdriver import (
     Chrome, Firefox, Safari, Ie, Edge, Opera
 )
 
 from scrawler.scheduler.scheduler import DatabaseScheduler, ItemUrlScheduler, BaseScheduler
-from scrawler.utils.utils import download_delay
 from scrawler.utils.driver import close_driver
 from scrawler.logger.logger import logger
-from scrawler.forms.forms import AuthForm
 
 
 class CrawlerWorker(Thread):
