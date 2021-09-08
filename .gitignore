@@ -25,4 +25,7 @@ Scrawler.egg-info
 info.txt
 projects.txt
 database.db
+test.db
+*.db
 bunny.py
+todos.xlsx
