@@ -5,12 +5,16 @@ from .scheduler.scheduler import ItemUrlScheduler, DatabaseScheduler
 from .worker.downloader import UrlDownloaderWorker
 from .worker.crawler import CrawlerWorker
 from .worker.database import DatabaseWorker
+from .orm import orm as model
 
 __version__ = '2.0.3'
-__author__ = 'Daniel Afriyie'
-__author_email__ = 'afriyiedaniel1@outlook.com'
 
 __all__ = [
-    '__version__', '__author__', '__author_email__',
-    'ItemUrlScheduler', 'DatabaseScheduler', 'UrlDownloaderWorker', 'CrawlerWorker', 'DatabaseWorker'
+    '__version__',
+    'ItemUrlScheduler',
+    'DatabaseScheduler',
+    'UrlDownloaderWorker',
+    'CrawlerWorker',
+    'DatabaseWorker',
+    'model'
 ]

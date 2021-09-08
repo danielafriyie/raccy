@@ -5,6 +5,16 @@ Currently it supports on SQLite Database.
 """
 import sqlite3 as sq
 
+from scrawler.core.meta import SingletonMeta
+from scrawler.core.exceptions import ModelDoesNotExist, InsertError, QueryError
+
+
+#################################################
+#       MODEL CONFIGURATION
+#################################################
+class Config(metaclass=SingletonMeta):
+    db_path = 'db.sqlite3'
+
 
 #####################################################
 #       MODEL FIELDS
@@ -120,7 +130,7 @@ class BaseQuery:
 
     def __getattribute__(self, item):
         data = object.__getattribute__(self, '_data')
-        if item in data and isinstance(data, dict):
+        if isinstance(data, dict) and item in data:
             return data[item]
         return object.__getattribute__(self, item)
 
@@ -152,12 +162,67 @@ class Query(BaseQuery):
         self._db = db
         self._table = table
         self._sql = sql
+        self.__state = None
+
+    def set_state(self, state):
+        self.__state = state
+
+    @property
+    def state(self):
+        return self.__state
 
     @classmethod
     def select(cls, db, table, fields):
-        sql = f"SELECT {', '.join(fields)} FROM {table};"
+        temp_sql = f"SELECT {', '.join(fields)} FROM {table}"
+        sql = temp_sql + ';'
         data = db.execute(sql).fetchall()
+        klass = cls(data, db, table, temp_sql)
+        klass.set_state('select')
+        return klass
+
+    @classmethod
+    def _from_query(cls, data, db, table, sql):
         return cls(data, db, table, sql)
+
+    def where(self, **kwargs):
+        if self._sql is None:
+            raise QueryError(f"{self._table}: select method must be called before where method!")
+
+        query, values = [], []
+        where_sql = " WHERE {query}"
+
+        for key, val in kwargs.items():
+            values.append(val)
+            query.append(f"{key}=?")
+
+        where_sql = where_sql.format(query=' AND '.join(query))
+        temp_sql = self._sql + where_sql
+        sql = temp_sql + ';'
+        data = self._db.execute(sql, values).fetchall()
+        klass = self._from_query(data, self._db, self._table, temp_sql)
+        klass._where_sql = where_sql
+        klass._where_values = values
+        klass.set_state('where')
+        return klass
+
+    def bulk_update(self, **kwargs):
+        if self.__state != 'where':
+            raise QueryError(f"{self._table}: where method must be called before bulk_update method!")
+
+        where_sql = self._where_sql
+        where_values = self._where_values
+        temp_sql = 'UPDATE {table} SET {placeholders}'
+        placeholders, values = [], []
+
+        for key, val in kwargs.items():
+            placeholders.append(f"{key}=?")
+            values.append(val)
+
+        temp_sql = temp_sql.format(table=self._table, placeholders=', '.join(placeholders)) + where_sql
+        sql = temp_sql + ';'
+        values = values + where_values
+        self._db.execute(sql, values)
+        self._db.commit()
 
 
 ####################################################
@@ -193,10 +258,6 @@ class ModelBaseMetaClass(type):
         if base:
             for cls in base:
                 if hasattr(cls, '__mappings__'):
-                    try:
-                        del cls.__mappings__['_pk']
-                    except KeyError:
-                        pass
                     attr.update(cls.__mappings__)
 
         # Determine model fields
@@ -216,7 +277,7 @@ class ModelBaseMetaClass(type):
         _meta = mcs._get_meta_data(mcs, attr)
 
         # Checks if model has PrimaryKeyField
-        # if False, then it will automatically create one else uses the one already created
+        # if False, then it will automatically create one
         if has_primary_key is False and _meta.abstract is False:
             mappings['_pk'] = PrimaryKeyField()
 
@@ -232,16 +293,16 @@ class ModelBaseMetaClass(type):
 class ModelManager:
     """Manager for handling all database operations"""
 
-    def __init__(self, model):
+    def __init__(self, model, db_path):
         self._model = model
         self._mapping = model.__mappings__.items()
-        self._db = sq.connect('test.db')
+        self._db = sq.connect(db_path)
 
     @property
     def table_name(self):
         return self._model.__table_name__
 
-    def _create_table(self):
+    def _create_table(self, commit=True):
         fields = []
         foreign_key_sql = []
 
@@ -259,7 +320,8 @@ class ModelManager:
             );
         """
         self._db.execute(sql)
-        self._db.commit()
+        if commit:
+            self._db.commit()
 
     def _get_primary_key_field(self):
         for key, val in self._mapping:
@@ -274,7 +336,7 @@ class ModelManager:
     def create(self, **kwargs):
         return self.insert(**kwargs)
 
-    def insert(self, **kwargs):
+    def _get_insert_sql(self, **kwargs):
         insert_sql = 'INSERT INTO {name} ({fields}) VALUES ({placeholders});'
         fields, values, placeholders = [], [], []
 
@@ -284,9 +346,21 @@ class ModelManager:
             values.append(val)
 
         sql = insert_sql.format(name=self.table_name, fields=', '.join(fields), placeholders=', '.join(placeholders))
+        return sql, values
+
+    def insert(self, **kwargs):
+        sql, values = self._get_insert_sql(**kwargs)
         cursor = self._db.execute(sql, values)
         self._db.commit()
         return cursor.lastrowid
+
+    def bulk_insert(self, *data):
+        for d in data:
+            if not isinstance(d, dict):
+                raise InsertError(f"bulk_insert accepts only dictionary values!")
+            sql, values = self._get_insert_sql(**d)
+            self._db.execute(sql, values)
+        self._db.commit()
 
     def delete(self, **kwargs):
         delete_sql = 'DELETE FROM {table} WHERE {query};'
@@ -308,15 +382,18 @@ class ModelManager:
             values.append(val)
             query.append(f'{key}=?')
 
-        sql = get_sql.format(table=self.table_name, query=' AND '.join(query))
-        query_set = self._db.execute(sql, values).fetchone()
-        data = dict(zip(self._table_fields, query_set))
-        pk_field = self._get_primary_key_field()
-        data['_table'] = self.table_name
-        data['_pk'] = data[pk_field]
-        data['_pk_field'] = pk_field
-        query_class = QuerySet(data)
-        query_class.db = self._db
+        try:
+            sql = get_sql.format(table=self.table_name, query=' AND '.join(query))
+            query_set = self._db.execute(sql, values).fetchone()
+            data = dict(zip(self._table_fields, query_set))
+            pk_field = self._get_primary_key_field()
+            data['_table'] = self.table_name
+            data['_pk'] = data[pk_field]
+            data['_pk_field'] = pk_field
+            query_class = QuerySet(data)
+            query_class.db = self._db
+        except TypeError:
+            raise ModelDoesNotExist(f"{self.table_name}: No model matches the given query!")
 
         return query_class
 
@@ -330,52 +407,8 @@ class Model(metaclass=ModelBaseMetaClass):
         abstract = True
 
     def __init_subclass__(cls, **kwargs):
-        # Creates database table immediately Model class is subclassed
-        _meta = cls._meta
-        if _meta.abstract is False:
-            cls.objects = ModelManager(cls)
+        # If the model is not abstract model then
+        # create database table immediately the Model class is subclassed
+        if cls._meta.abstract is False:
+            cls.objects = ModelManager(cls, Config.db_path)
             cls.objects._create_table()
-
-
-class Author(Model):
-    author_id = PrimaryKeyField()
-    name = CharField(max_length=75)
-    age = IntegerField()
-    lucky_number = IntegerField(default=90)
-    salary = FloatField(default=50000)
-
-    class Meta:
-        db_name = 'author_table'
-
-
-class BaseDb(Model):
-    author_id = ForeignKeyField(Author, 'author_id')
-
-    class Meta:
-        abstract = True
-
-
-class Post(BaseDb):
-    post_id = PrimaryKeyField()
-    post = TextField(null=False)
-
-    class Meta:
-        db_name = 'post_table'
-
-
-class AuthorPost(BaseDb):
-    post_id = ForeignKeyField(Post, 'post_id')
-    text = TextField()
-
-
-# author = Author.objects.create(name='Kojo', age=19)
-# p = Post.objects.insert(post="This is Kojo's post", author_id=author)
-# AuthorPost.objects.insert(post_id=p, text='This is Kojo\'s author post text', author_id=author)
-# Author.objects.delete(author_id=4, age=19)
-a = Author.objects.get(author_id=1)
-
-# print(a.get_data)
-a.update(name='Anthony Adom Mensah')
-print(a.name)
-# a = Author.objects.select(['name', 'age'])
-# print(a)

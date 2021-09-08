@@ -1,5 +1,5 @@
 import setuptools
-from scrawler import __version__, __author__, __author_email__
+from scrawler import __version__
 
 with open('README.md', 'r', encoding='utf-8') as f:
     long_des = f.read()
@@ -19,10 +19,6 @@ exclude = (
 setuptools.setup(
     name="Scrawler",
     version=__version__,
-    author=__author__,
-    author_email=__author_email__,
-    maintainer=__author__,
-    maintainer_email=__author_email__,
     description="Web Scraping Library Based on Selenium",
     long_description=long_des,
     long_description_content_type="text/markdown",
