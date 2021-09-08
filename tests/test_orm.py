@@ -99,6 +99,8 @@ class TestModels(unittest.TestCase):
         self.assertTrue(hasattr(self.post2, '_meta'))
         self.assertTrue(hasattr(self.post2, 'objects'))
         self.assertTrue(hasattr(Post, 'objects'))
+        self.assertTrue(hasattr(Post, '__pk__'))
+        self.assertTrue(hasattr(Author, '__pk__'))
 
         for key in self.author1.__mappings__.keys():
             self.assertFalse(hasattr(self.author1, key))

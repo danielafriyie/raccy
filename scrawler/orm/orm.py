@@ -272,9 +272,11 @@ class ModelBaseMetaClass(type):
         # Determine model fields
         mappings = {}
         has_primary_key = False
+        primary_key_field = None
         for key, value in attr.items():
             if isinstance(value, PrimaryKeyField):
                 has_primary_key = True
+                primary_key_field = key
             if isinstance(value, Field):
                 mappings[key] = value
 
@@ -289,11 +291,13 @@ class ModelBaseMetaClass(type):
         # if False, then it will automatically create one
         if has_primary_key is False and _meta.abstract is False:
             mappings['_pk'] = PrimaryKeyField()
+            primary_key_field = '_pk'
 
         # Save mapping between attribute and columns and table name
         attr['_meta'] = _meta
         attr['__mappings__'] = mappings
         attr['__table_name__'] = _meta.db_name if _meta.db_name else name.lower()
+        attr['__pk__'] = primary_key_field
         new_class = type.__new__(mcs, name, base, attr)
 
         return new_class
@@ -336,9 +340,7 @@ class ModelManager:
             self._db.commit()
 
     def _get_primary_key_field(self):
-        for key, val in self._mapping:
-            if isinstance(val, PrimaryKeyField):
-                return key
+        return self._model.__pk__
 
     @property
     def _table_fields(self):
