@@ -180,6 +180,11 @@ class TestModels(unittest.TestCase):
             self.post1.objects.get(author_id=990)
             self.author1.objects.get(author_id=999)
 
+        qs = self.post2.objects.all()
+        self.assertIsInstance(qs, map)
+        for query in qs:
+            self.assertIsInstance(query, model.QuerySet)
+
 
 class TestQuery(unittest.TestCase):
 

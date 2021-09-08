@@ -314,6 +314,14 @@ class ModelManager:
             check_same_thread=Config.CHECK_SAME_THREAD
         )
 
+    def all(self):
+        table_fields = self._table_fields
+        pk_field = self._get_primary_key_field()
+        pk_idx = table_fields.index(pk_field)
+        qs = self.select(table_fields).get_data
+        datas = map(lambda x: self.get(**{pk_field: x[pk_idx]}), qs)
+        return datas
+
     @property
     def table_name(self):
         return self._model.__table_name__
