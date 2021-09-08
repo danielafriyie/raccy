@@ -22,12 +22,9 @@ class DatabaseWorker(Thread):
             try:
                 data = self.db_scheduler.get(timeout=self.wait_timeout)
                 self.save(data)
-            except Empty as e:
-                self.log.exception(e)
+            except Empty:
+                self.log.info('Empty scheduler, closing.................')
                 return
 
-    def start_job(self):
-        self.job()
-
     def run(self):
-        self.start_job()
+        self.job()

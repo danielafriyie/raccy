@@ -1,5 +1,4 @@
 import unittest
-from random import randint
 import os
 import sys
 
@@ -11,7 +10,7 @@ from scrawler.orm.utils import is_abstract_model
 from scrawler.core.exceptions import InsertError, QueryError, ModelDoesNotExist
 
 db_path = os.path.join(BASE_DIR, 'test_db.sqlite3')
-model.Config.db_path = db_path
+model.Config.DB_PATH = db_path
 
 
 class Author(model.Model):

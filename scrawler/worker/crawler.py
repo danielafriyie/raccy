@@ -21,37 +21,25 @@ class CrawlerWorker(Thread):
     url_wait_timeout: Optional[int] = 10
     scheduler: Union[ItemUrlScheduler, BaseScheduler, Queue] = ItemUrlScheduler()
     db_scheduler: Union[DatabaseScheduler, BaseScheduler, Queue] = DatabaseScheduler()
-    _download_delay: Tuple[int, int] = (1, 5)
     log = logger()
-    auth_form: Optional[AuthForm] = None
 
     def __init__(self, driver: Union[Chrome, Firefox, Safari, Ie, Edge, Opera], *args, **kwargs):
         Thread.__init__(self, *args, **kwargs)
         self.driver = driver
 
     def job(self):
-        if self.auth_form:
-            self.auth_form(driver=self.driver).login()
         while True:
             try:
                 url = self.scheduler.get(timeout=self.url_wait_timeout)
-                try:
-                    self.driver.get(url['url'])
-                except TimeoutException:
-                    continue
-                self.parse(url['url'], url['#'])
+                self.parse(url)
                 self.scheduler.task_done()
-                download_delay(*self._download_delay)
-            except Empty as e:
-                self.log.exception(e)
+            except Empty:
+                self.log.info('Empty scheduler, closing.................')
                 close_driver(self.driver, self.log)
                 return
 
-    def start_job(self) -> None:
-        self.job()
-
-    def parse(self, url: Optional[str] = None, n: Optional[int] = None) -> None:
+    def parse(self, url: str) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.parse() method is not implemented")
 
     def run(self):
-        self.start_job()
+        self.job()

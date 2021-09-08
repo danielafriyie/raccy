@@ -1,17 +1,23 @@
 """Global exception and warning module"""
 
 
-class _BaseException(Exception):
-    """Base Exception class for all exception class"""
-
-
-class ModelDoesNotExist(_BaseException):
+########################################
+#       ORM EXCEPTIONS
+#######################################
+class ModelDoesNotExist(TypeError):
     pass
 
 
-class InsertError(_BaseException):
+class InsertError(TypeError):
     pass
 
 
-class QueryError(_BaseException):
+class QueryError(TypeError):
+    pass
+
+
+########################################
+#       CRAWLER EXCEPTIONS
+#######################################
+class CrawlerException(TypeError):
     pass

@@ -1,7 +1,7 @@
 """
 Object Relational Mapper Built into the library to
 simplify SQL operations, and encapsulate database operations.
-Currently it supports on SQLite Database.
+Currently it supports only SQLite Database.
 """
 import sqlite3 as sq
 
@@ -13,7 +13,13 @@ from scrawler.core.exceptions import ModelDoesNotExist, InsertError, QueryError
 #       MODEL CONFIGURATION
 #################################################
 class Config(metaclass=SingletonMeta):
-    db_path = 'db.sqlite3'
+    DB_PATH = 'db.sqlite3'
+    CHECK_SAME_THREAD = False
+    TIMEOUT = None
+    DETECT_TYPES = None
+    ISOLATION_LEVEL = None
+    FACTORY = None
+    CACHED_STATEMEMTS = None
 
 
 #####################################################
@@ -296,10 +302,13 @@ class ModelBaseMetaClass(type):
 class ModelManager:
     """Manager for handling all database operations"""
 
-    def __init__(self, model, db_path):
+    def __init__(self, model):
         self._model = model
         self._mapping = model.__mappings__.items()
-        self._db = sq.connect(db_path)
+        self._db = sq.connect(
+            database=Config.DB_PATH,
+            check_same_thread=Config.CHECK_SAME_THREAD
+        )
 
     @property
     def table_name(self):
@@ -416,5 +425,5 @@ class Model(metaclass=ModelBaseMetaClass):
         # If the model is not abstract model then
         # create database table immediately the Model class is subclassed
         if cls._meta.abstract is False:
-            cls.objects = ModelManager(cls, Config.db_path)
+            cls.objects = ModelManager(cls)
             cls.objects._create_table()
