@@ -106,13 +106,13 @@ class ForeignKeyField(Field):
 
 
 ####################################################
-#       QUERY SET
+#       QUERY AND QUERYSET
 ####################################################
-class QuerySet:
+class BaseQuery:
+    """Base class for all query and queryset"""
 
-    def __init__(self, data, sql=None):
+    def __init__(self, data):
         self._data = data
-        self._sql = sql
 
     @property
     def get_data(self):
@@ -124,18 +124,40 @@ class QuerySet:
             return data[item]
         return object.__getattribute__(self, item)
 
-    @classmethod
-    def select(cls, table, *fields):
-        sql = f"SELECT {', '.join(fields)} FROM {table};"
 
+class QuerySet(BaseQuery):
 
     def update(self, **kwargs):
-        update_sql = 'UPDATE {table} SET {placeholders} WHERE {query}'
-        placeholders, values = [], []
+        update_sql = "UPDATE {table} SET {placeholders} WHERE {query};"
+        query = f"{self._pk_field}=?"
+        values, placeholders = [], []
 
         for key, val in kwargs.items():
             values.append(val)
-            placeholders.append(f'{key}=?')
+            placeholders.append(f"{key}=?")
+
+        values.append(self._pk)
+        sql = update_sql.format(table=self._table, placeholders=', '.join(placeholders), query=query)
+        self.db.execute(sql, values)
+        self.db.commit()
+
+
+class Query(BaseQuery):
+    """
+    Query class for making complex and advance queries
+    """
+
+    def __init__(self, data, db, table, sql=None):
+        super().__init__(data)
+        self._db = db
+        self._table = table
+        self._sql = sql
+
+    @classmethod
+    def select(cls, db, table, fields):
+        sql = f"SELECT {', '.join(fields)} FROM {table};"
+        data = db.execute(sql).fetchall()
+        return cls(data, db, table, sql)
 
 
 ####################################################
@@ -171,21 +193,32 @@ class ModelBaseMetaClass(type):
         if base:
             for cls in base:
                 if hasattr(cls, '__mappings__'):
+                    try:
+                        del cls.__mappings__['_pk']
+                    except KeyError:
+                        pass
                     attr.update(cls.__mappings__)
 
         # Determine model fields
         mappings = {}
+        has_primary_key = False
         for key, value in attr.items():
+            if isinstance(value, PrimaryKeyField):
+                has_primary_key = True
             if isinstance(value, Field):
                 mappings[key] = value
 
         # Delete fields that are already stored in mapping
         for key in mappings.keys():
             del attr[key]
-        # print(name, mappings)
 
         # Model metadata
         _meta = mcs._get_meta_data(mcs, attr)
+
+        # Checks if model has PrimaryKeyField
+        # if False, then it will automatically create one else uses the one already created
+        if has_primary_key is False and _meta.abstract is False:
+            mappings['_pk'] = PrimaryKeyField()
 
         # Save mapping between attribute and columns and table name
         attr['_meta'] = _meta
@@ -227,6 +260,11 @@ class ModelManager:
         """
         self._db.execute(sql)
         self._db.commit()
+
+    def _get_primary_key_field(self):
+        for key, val in self._mapping:
+            if isinstance(val, PrimaryKeyField):
+                return key
 
     @property
     def _table_fields(self):
@@ -272,13 +310,24 @@ class ModelManager:
 
         sql = get_sql.format(table=self.table_name, query=' AND '.join(query))
         query_set = self._db.execute(sql, values).fetchone()
-        query_set = dict(zip(self._table_fields, query_set))
-        query_set['_table'] = self.table_name
+        data = dict(zip(self._table_fields, query_set))
+        pk_field = self._get_primary_key_field()
+        data['_table'] = self.table_name
+        data['_pk'] = data[pk_field]
+        data['_pk_field'] = pk_field
+        query_class = QuerySet(data)
+        query_class.db = self._db
 
-        return QuerySet(query_set)
+        return query_class
+
+    def select(self, fields):
+        return Query.select(self._db, self.table_name, fields)
 
 
 class Model(metaclass=ModelBaseMetaClass):
+    class Meta:
+        db_name = None
+        abstract = True
 
     def __init_subclass__(cls, **kwargs):
         # Creates database table immediately Model class is subclassed
@@ -319,8 +368,14 @@ class AuthorPost(BaseDb):
     text = TextField()
 
 
-# author = Author.objects.create(name='Brother Mensah', age=19, lucky_number=120, salary=2500)
-# Post.objects.insert(post="This is Brother's post", author_id=author)
+# author = Author.objects.create(name='Kojo', age=19)
+# p = Post.objects.insert(post="This is Kojo's post", author_id=author)
+# AuthorPost.objects.insert(post_id=p, text='This is Kojo\'s author post text', author_id=author)
 # Author.objects.delete(author_id=4, age=19)
 a = Author.objects.get(author_id=1)
+
+# print(a.get_data)
+a.update(name='Anthony Adom Mensah')
 print(a.name)
+# a = Author.objects.select(['name', 'age'])
+# print(a)
