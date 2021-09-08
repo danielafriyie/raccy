@@ -173,11 +173,14 @@ class Query(BaseQuery):
 
     @classmethod
     def select(cls, db, table, fields):
-        temp_sql = f"SELECT {', '.join(fields)} FROM {table}"
-        sql = temp_sql + ';'
-        data = db.execute(sql).fetchall()
-        klass = cls(data, db, table, temp_sql)
-        klass.set_state('select')
+        try:
+            temp_sql = f"SELECT {', '.join(fields)} FROM {table}"
+            sql = temp_sql + ';'
+            data = db.execute(sql).fetchall()
+            klass = cls(data, db, table, temp_sql)
+            klass.set_state('select')
+        except sq.OperationalError as e:
+            raise QueryError(str(e))
         return klass
 
     @classmethod
@@ -349,9 +352,12 @@ class ModelManager:
         return sql, values
 
     def insert(self, **kwargs):
-        sql, values = self._get_insert_sql(**kwargs)
-        cursor = self._db.execute(sql, values)
-        self._db.commit()
+        try:
+            sql, values = self._get_insert_sql(**kwargs)
+            cursor = self._db.execute(sql, values)
+            self._db.commit()
+        except sq.OperationalError as e:
+            raise InsertError(str(e))
         return cursor.lastrowid
 
     def bulk_insert(self, *data):

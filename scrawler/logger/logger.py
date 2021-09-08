@@ -1,4 +1,7 @@
 import logging
+import os
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class _Logger:
@@ -10,7 +13,7 @@ class _Logger:
     def __init__(self, name: str = None, fmt: str = None, filename: str = None):
         self.name = name if name else __name__
         self.fmt = fmt if fmt else '%(asctime)s:%(levelname)s:%(message)s'
-        self.filename = filename if filename else 'scrawler.log'
+        self.filename = filename if filename else os.path.join(BASE_DIR, 'scrawler.log')
 
     def _create_logger(self):
         _logger = logging.getLogger(self.name)

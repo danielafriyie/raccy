@@ -30,3 +30,4 @@ test.db
 bunny.py
 todos.xlsx
 *.sqlite3
+rabbit.py
