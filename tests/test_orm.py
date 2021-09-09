@@ -10,7 +10,8 @@ from scrawler.orm.utils import is_abstract_model
 from scrawler.core.exceptions import InsertError, QueryError, ModelDoesNotExist
 
 db_path = os.path.join(BASE_DIR, 'test_db.sqlite3')
-model.Config.DB_PATH = db_path
+config = model.Config()
+config.DATABASE = model.SQLiteDatabase(db_path)
 
 
 class Author(model.Model):
@@ -32,22 +33,22 @@ class AbstractModel(model.Model):
         abstract = True
 
 
-class TestModelFields(unittest.TestCase):
+class TestSQLiteModelFields(unittest.TestCase):
 
     def _test_field(self, field, type_, sql, *field_args, **field_kwargs):
         f = field(*field_args, **field_kwargs)
-        self.assertEqual(type_, f.type)
+        self.assertEqual(type_, f._type)
         self.assertEqual(sql, f.sql)
         self.assertIsInstance(f, model.Field)
 
     def test_primary_key_field(self):
-        self._test_field(model.PrimaryKeyField, 'INTEGER', 'INTEGER PRIMARY KEY AUTOINCREMENT')
+        self._test_field(model.PrimaryKeyField, 'INTEGER PRIMARY KEY AUTOINCREMENT', 'INTEGER PRIMARY KEY AUTOINCREMENT')
 
     def test_charfield(self):
-        self._test_field(model.CharField, 'VARCHAR', 'VARCHAR(60) ', max_length=60)
+        self._test_field(model.CharField, 'VARCHAR', 'VARCHAR (60)', max_length=60)
 
     def test_textfield(self):
-        self._test_field(model.TextField, 'TEXT', 'TEXT NOT NULL ', null=False)
+        self._test_field(model.TextField, 'TEXT', 'TEXT NOT NULL', null=False)
 
     def test_integerfield(self):
         self._test_field(model.IntegerField, 'INTEGER', 'INTEGER')
@@ -68,7 +69,7 @@ class TestModelFields(unittest.TestCase):
         self._test_field(model.DateTimeField, 'DATETIME', 'DATETIME')
 
     def test_foreign_key_field(self):
-        self._test_field(model.ForeignKeyField, 'INTEGER', 'INTEGER NOT NULL ', model=Author, on_field='author_id')
+        self._test_field(model.ForeignKeyField, 'INTEGER', 'INTEGER NOT NULL', model=Author, on_field='author_id')
         fk = model.ForeignKeyField(Author, 'author_id')
         fk_sql = f"""
             FOREIGN KEY (fk)
@@ -132,7 +133,10 @@ class TestModels(unittest.TestCase):
         author_data = dict(name='Daniel Afriyie', age=25)
         id_ = self.author1.objects.create(**author_data)
         a_sql = 'INSERT INTO author (name, age) VALUES (?, ?);'
-        self.assertEqual(self.author1.objects._get_insert_sql(**author_data)[0], a_sql)
+        self.assertEqual(
+            self.author1.objects._db_mapper._get_insert_sql(self.author1.objects.table_name, **author_data)[0],
+            a_sql
+        )
         self.post1.objects.insert(author_id=id_, post='This is a test post')
 
         with self.assertRaises(InsertError):
@@ -212,11 +216,11 @@ class TestQuery(unittest.TestCase):
         self.assertEqual(query.state, 'where')
 
         with self.assertRaises(QueryError):
-            query._sql = None
+            query._fields = None
             query.where(age=20)
 
         data = self.author.objects.select(['*']).get_data
-        query = model.Query(data, self.author.objects._db, self.author.objects.table_name)
+        query = model.Query(data, self.author.objects.table_name)
         self.assertIsInstance(query.get_data, list)
         self.assertIsInstance(query, model.BaseQuery)
 
