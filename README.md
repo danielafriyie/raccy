@@ -33,7 +33,6 @@ from scrawler.utils.driver import next_btn_handler, close_driver
 from selenium import webdriver
 from shutil import which
 
-urls_scraped = 0
 config = model.Config()
 config.DATABASE = model.SQLiteDatabase('quotes.sqlite3')
 
@@ -49,19 +48,20 @@ class Quote(model.Model):
 
 class UrlDownloader(UrlDownloaderWorker):
     start_url = 'https://quotes.toscrape.com/page/1/'
+    urls_scraped = 0
 
     def job(self):
         while True:
             url = self.driver.current_url
             self.scheduler.put(url)
             next_btn_handler(self.driver, "//a[contains(text(), 'Next')]")
-            global urls_scraped
-            if urls_scraped > 10:
+
+            if self.urls_scraped > 10:
                 self.log.info('Closing................')
                 break
 
             with self.mutex:
-                urls_scraped += 1
+                self.urls_scraped += 1
         close_driver(self.driver, self.log)
 
 
