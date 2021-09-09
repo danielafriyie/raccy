@@ -21,7 +21,8 @@ from selenium import webdriver
 from shutil import which
 
 url_scraped = 0
-model.Config.DB_PATH = 'quotes.sqlite3'
+config = model.Config()
+config.DATABASE = model.SQLiteDatabase('quotes.sqlite3')
 
 
 class Quote(model.Model):
