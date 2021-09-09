@@ -10,7 +10,20 @@ Currently the ORM feature supports only SQLite Database.
 - Python 3.7+ 
 - Works on Linux, Windows
 
-### Tutorial
+### ARCHITECTURE OVERVIEW
+* **UrlDownloaderWorker:** resonsible for downloading item(s) to be scraped urls and enqueue(s) them in ItemUrlScheduler
+
+* **ItemUrlScheduler:** receives item urls from UrlDownloaderWorker and enqueues the
+    for feeding them to CrawlerWorker
+    
+* **CrawlerWorker:** fetches item web pages and scrapes or extract data from them and enqueues the data in DatabaseScheduler
+
+* **DatabaseScheduler:** receives scraped item data from CrawlerWorker(s) and enques them
+    for feeding them to DatabaseWorker.
+    
+* **DatabaseWorker:** receives scraped data from DatabaseScheduler and stores it in a persistent database.
+
+### TUTORIAL
 
 ```python
 from scrawler import (
@@ -20,7 +33,7 @@ from scrawler.utils.driver import next_btn_handler, close_driver
 from selenium import webdriver
 from shutil import which
 
-url_scraped = 0
+urls_scraped = 0
 config = model.Config()
 config.DATABASE = model.SQLiteDatabase('quotes.sqlite3')
 
@@ -42,13 +55,13 @@ class UrlDownloader(UrlDownloaderWorker):
             url = self.driver.current_url
             self.scheduler.put(url)
             next_btn_handler(self.driver, "//a[contains(text(), 'Next')]")
-            global url_scraped
-            if url_scraped > 10:
+            global urls_scraped
+            if urls_scraped > 10:
                 self.log.info('Closing................')
                 break
 
             with self.mutex:
-                url_scraped += 1
+                urls_scraped += 1
         close_driver(self.driver, self.log)
 
 
