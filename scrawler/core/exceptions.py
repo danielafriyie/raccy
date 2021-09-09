@@ -2,6 +2,13 @@
 
 
 ########################################
+#       GLOBAL EXCEPTIONS
+#######################################
+class ImproperlyConfigured(ValueError):
+    pass
+
+
+########################################
 #       ORM EXCEPTIONS
 #######################################
 class ModelDoesNotExist(TypeError):

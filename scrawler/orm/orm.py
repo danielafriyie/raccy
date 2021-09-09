@@ -6,20 +6,265 @@ Currently it supports only SQLite Database.
 import sqlite3 as sq
 
 from scrawler.core.meta import SingletonMeta
-from scrawler.core.exceptions import ModelDoesNotExist, InsertError, QueryError
+from scrawler.core.exceptions import ModelDoesNotExist, InsertError, QueryError, ImproperlyConfigured
 
 
 #################################################
-#       MODEL CONFIGURATION
+#       DATABASE CONFIGURATION
 #################################################
 class Config(metaclass=SingletonMeta):
-    DB_PATH = 'db.sqlite3'
-    CHECK_SAME_THREAD = False
-    TIMEOUT = None
-    DETECT_TYPES = None
-    ISOLATION_LEVEL = None
-    FACTORY = None
-    CACHED_STATEMEMTS = None
+    DATABASE = None
+    DBMAPPER = None
+
+    def __setattr__(self, key, value):
+        if key == 'DATABASE':
+            if not isinstance(value, BaseDatabase):
+                raise ImproperlyConfigured(f"{self.__class__.__name__}: DATABASE must be an instance of BaseDatabase!")
+            object.__setattr__(self, 'DBMAPPER', value.DB_MAPPER)
+        object.__setattr__(self, key, value)
+
+    def __getattribute__(self, item):
+        if item == 'DATABASE' or item == 'DBMAPPER':
+            if object.__getattribute__(self, 'DATABASE') is None:
+                raise ImproperlyConfigured(f"{self.__class__.__name__}: DATABASE or DBMAPPER is None!")
+        return object.__getattribute__(self, item)
+
+
+####################################################
+#       DATABASE MAPPER
+####################################################
+class BaseDbMapper:
+    """Base Class for all database mappers"""
+
+
+class BaseSQLDbMapper(BaseDbMapper):
+    """Base Class for all SQL type database mapper"""
+
+    PRIMARYKEYFIELD = None
+    CHARFIELD = None
+    TEXTFIELD = None
+    INTEGERFIELD = None
+    FLOATFIELD = None
+    BOOLEANFIELD = None
+    DATEFIELD = None
+    DATETIMEFIELD = None
+    FOREIGNKEYFIELD = None
+
+    def _get_foreign_key_sql(self, model, field_name, on_field, on_delete='CASCADE', on_update='CASCADE'):
+        raise NotImplementedError(f"{self.__class__.__name__}: _get_foreign_key_sql is not implemented!")
+
+    def _get_field_sql(self, type_, max_length=None, null=True, unique=False, default=None):
+        raise NotImplementedError(f"{self.__class__.__name__}: _get_field_sql is not implemented!")
+
+    def _get_create_table_sql(self, table_name, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}: _get_create_table_sql is not implemented!")
+
+    def _get_insert_sql(self, table_name, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}: _get_insert_sql is not implemented!")
+
+    def _get_update_sql(self, table_name, pk, pk_field, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}: _get_update_sql is not implemented!")
+
+    def _get_bulk_update_sql(self, table_name, query_dict, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}: _get_bulk_update_sql is not implemented!")
+
+    def _get_delete_sql(self, table_name, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}: _get_delete_sql is not implemented!")
+
+    def _get_select_sql(self, table, fields):
+        raise NotImplementedError(f"{self.__class__.__name__}: _get_select_sql is not implemented!")
+
+    def _get_select_where_sql(self, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}: _get_select_where_sql is not implemented!")
+
+
+class SQLiteDbMapper(BaseSQLDbMapper):
+    """Mapper for SQLite Database"""
+    PRIMARYKEYFIELD = "INTEGER PRIMARY KEY AUTOINCREMENT"
+    CHARFIELD = "VARCHAR"
+    TEXTFIELD = "TEXT"
+    INTEGERFIELD = "INTEGER"
+    FLOATFIELD = "DOUBLE"
+    BOOLEANFIELD = "BOOLEAN"
+    DATEFIELD = "DATE"
+    DATETIMEFIELD = "DATETIME"
+    FOREIGNKEYFIELD = "INTEGER"
+
+    def _get_foreign_key_sql(self, model, field_name, on_field, on_delete='CASCADE', on_update='CASCADE'):
+        sql = f"""
+            FOREIGN KEY ({field_name})
+            REFERENCES {model} ({on_field}) 
+                ON UPDATE {on_update}
+                ON DELETE {on_delete}
+        """
+        return sql
+
+    def _get_field_sql(self, type_, max_length=None, null=True, unique=False, default=None):
+        sql = f'{type_}'
+        if max_length:
+            sql = sql + f' ({max_length})'
+        if null is False:
+            sql = sql + ' NOT NULL'
+        if unique:
+            sql = sql + ' UNIQUE'
+        if default:
+            sql = sql + f' DEFAULT {default}'
+        return sql
+
+    def _get_create_table_sql(self, table_name, **kwargs):
+        fields = []
+        foreign_key_sql = []
+
+        for name, field in kwargs.items():
+            if isinstance(field, ForeignKeyField):
+                foreign_key_sql.append(field._foreign_key_sql(name))
+            fields.append(f"{name} {field.sql}")
+
+        fields = ', '.join(fields)
+        if foreign_key_sql:
+            fields = fields + ','
+        foreign_key_sql = ', '.join(foreign_key_sql) if foreign_key_sql else ''
+
+        sql = f"""
+                CREATE TABLE IF NOT EXISTS {table_name} (
+                    {fields} 
+                    {foreign_key_sql}
+                );
+            """
+        return sql
+
+    def _get_insert_sql(self, table_name, **kwargs):
+        insert_sql = 'INSERT INTO {name} ({fields}) VALUES ({placeholders});'
+        fields, values, placeholders = [], [], []
+
+        for key, val in kwargs.items():
+            fields.append(key)
+            placeholders.append('?')
+            values.append(val)
+
+        sql = insert_sql.format(name=table_name, fields=', '.join(fields), placeholders=', '.join(placeholders))
+        return sql, values
+
+    def _get_update_sql(self, table_name, pk, pk_field, **kwargs):
+        update_sql = "UPDATE {table} SET {placeholders} WHERE {query};"
+        query = f"{pk_field}=?"
+        values, placeholders = [], []
+
+        for key, val in kwargs.items():
+            values.append(val)
+            placeholders.append(f"{key}=?")
+
+        values.append(pk)
+        sql = update_sql.format(table=table_name, placeholders=', '.join(placeholders), query=query)
+        return sql, values
+
+    def _get_bulk_update_sql(self, table_name, query_dict, **kwargs):
+        update_sql = 'UPDATE {table} SET {placeholders} WHERE {query}'
+        placeholders, values = [], []
+        query_vals, query_placeholders = [], []
+
+        for key, val in query_dict.items():
+            query_placeholders.append(f"{key}=?")
+            query_vals.append(val)
+
+        for key, val in kwargs.items():
+            placeholders.append(f"{key}=?")
+            values.append(val)
+
+        sql = update_sql.format(table=table_name, placeholders=', '.join(placeholders),
+                                query=' AND '.join(query_placeholders))
+        values = values + query_vals
+        return sql, values
+
+    def _get_delete_sql(self, table_name, **kwargs):
+        delete_sql = 'DELETE FROM {table} WHERE {query};'
+        query, values = [], []
+
+        for key, val in kwargs.items():
+            values.append(val)
+            query.append(f'{key}=?')
+
+        sql = delete_sql.format(table=table_name, query=' AND '.join(query))
+        return sql, values
+
+    def _get_select_sql(self, table, fields):
+        select_sql = 'SELECT {fields} FROM {table};'
+        sql = select_sql.format(table=table, fields=', '.join(fields))
+        return sql
+
+    def _get_select_where_sql(self, table_name, fields, **kwargs):
+        select_sql = 'SELECT {fields} FROM {table} WHERE {query};'
+
+        query, values = [], []
+        for key, val in kwargs.items():
+            values.append(val)
+            query.append(f"{key}=?")
+
+        sql = select_sql.format(fields=', '.join(fields), table=table_name, query=' AND '.join(query))
+        return sql, values
+
+
+####################################################
+#       DATABASE
+###################################################
+class BaseDatabase:
+    """Base Database class for all databases"""
+
+    @property
+    def DB(self):
+        return self._db
+
+    @property
+    def DB_MAPPER(self):
+        return self._db_mapper
+
+
+class BaseSQLDatabase(BaseDatabase):
+    """Base databae class for all SQL databases"""
+
+    def execute(self, *args, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}: execute is not implemented")
+
+    def exec_lastrowid(self, *args, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}: exec_lastrowid is not implemented")
+
+    def commit(self):
+        raise NotImplementedError(f"{self.__class__.__name__}: commit is not implemented")
+
+    def fetchone(self, *args, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}: fetchone is not implemented")
+
+    def fetchall(self, *args, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}: fetchall is not implemented")
+
+
+class SQLiteDatabase(BaseSQLDatabase):
+
+    def __init__(self, db_path, check_same_thread=False, **kwargs):
+        self._db = sq.connect(
+            database=db_path,
+            check_same_thread=check_same_thread,
+            **kwargs
+        )
+        self._db_mapper = SQLiteDbMapper()
+
+    def execute(self, *args, **kwargs):
+        self._db.execute(*args, **kwargs)
+
+    def exec_lastrowid(self, *args, **kwargs):
+        cursor = self._db.execute(*args, **kwargs)
+        return cursor.lastrowid
+
+    def commit(self):
+        self._db.commit()
+
+    def fetchone(self, *args, **kwargs):
+        qs = self._db.execute(*args, **kwargs)
+        return qs.fetchone()
+
+    def fetchall(self, *args, **kwargs):
+        qs = self._db.execute(*args, **kwargs)
+        return qs.fetchall()
 
 
 #####################################################
@@ -29,95 +274,94 @@ class Field:
     """Base class for all field types"""
 
     def __init__(self, type_, max_length=None, null=True, unique=False, default=None):
-        self.type = type_
-        self.max_length = max_length
-        self.null = null
-        self.unique = unique
-        self.default = default
+        self._db_mapper = Config().DBMAPPER
+        self._type = getattr(self._db_mapper, type_)
+        self._max_length = max_length
+        self._null = null
+        self._unique = unique
+        self._default = default
 
     @property
     def sql(self):
-        _sql = f'{self.type}'
-        if self.max_length:
-            _sql = _sql + f'({self.max_length}) '
-        if self.null is False:
-            _sql = _sql + ' NOT NULL '
-        if self.unique:
-            _sql = _sql + ' UNIQUE '
-        if self.default:
-            _sql = _sql + f' DEFAULT {self.default}'
+        _sql = self._db_mapper._get_field_sql(
+            self._type,
+            max_length=self._max_length,
+            null=self._null,
+            unique=self._unique,
+            default=self._default
+        )
         return _sql
+
+    @property
+    def _name(self):
+        return self.__class__.__name__
 
 
 class PrimaryKeyField(Field):
 
     def __init__(self, *args, **kwargs):
-        super().__init__('INTEGER', *args, **kwargs)
-
-    @property
-    def sql(self):
-        sql = super().sql + ' PRIMARY KEY AUTOINCREMENT'
-        return sql
+        super().__init__("PRIMARYKEYFIELD", *args, **kwargs)
 
 
 class CharField(Field):
 
     def __init__(self, max_length=120, *args, **kwargs):
-        super().__init__('VARCHAR', max_length, *args, **kwargs)
+        super().__init__("CHARFIELD", max_length, *args, **kwargs)
 
 
 class TextField(Field):
 
     def __init__(self, *args, **kwargs):
-        super().__init__('TEXT', *args, **kwargs)
+        super().__init__("TEXTFIELD", *args, **kwargs)
 
 
 class IntegerField(Field):
 
     def __init__(self, *args, **kwargs):
-        super().__init__('INTEGER', *args, **kwargs)
+        super().__init__("INTEGERFIELD", *args, **kwargs)
 
 
 class FloatField(Field):
 
     def __init__(self, *args, **kwargs):
-        super().__init__('DOUBLE', *args, **kwargs)
+        super().__init__("FLOATFIELD", *args, **kwargs)
 
 
 class BooleanField(Field):
 
     def __init__(self, *args, **kwargs):
-        super().__init__('BOOLEAN', *args, **kwargs)
+        super().__init__("BOOLEANFIELD", *args, **kwargs)
 
 
 class DateField(Field):
 
     def __init__(self, *args, **kwargs):
-        super().__init__('DATE', *args, **kwargs)
+        super().__init__("DATEFIELD", *args, **kwargs)
 
 
 class DateTimeField(Field):
 
     def __init__(self, *args, **kwargs):
-        super().__init__('DATETIME', *args, **kwargs)
+        super().__init__("DATETIMEFIELD", *args, **kwargs)
 
 
 class ForeignKeyField(Field):
 
     def __init__(self, model, on_field, on_delete='CASCADE', on_update='CASCADE'):
-        super().__init__('INTEGER', null=False)
+        super().__init__("FOREIGNKEYFIELD", null=False)
         self.__model = model
         self.__on_field = on_field
         self.__on_delete = on_delete
         self.__on_update = on_update
 
     def _foreign_key_sql(self, field_name):
-        sql = f"""
-            FOREIGN KEY ({field_name})
-            REFERENCES {self.__model.objects.table_name} ({self.__on_field}) 
-                ON UPDATE {self.__on_update}
-                ON DELETE {self.__on_delete}
-        """
+        sql = self._db_mapper._get_foreign_key_sql(
+            model=self.__model.__table_name__,
+            field_name=field_name,
+            on_field=self.__on_field,
+            on_delete=self.__on_delete,
+            on_update=self.__on_update
+        )
         return sql
 
 
@@ -129,6 +373,8 @@ class BaseQuery:
 
     def __init__(self, data):
         self._data = data
+        self._db = Config().DATABASE
+        self._db_mapper = Config().DBMAPPER
 
     @property
     def get_data(self):
@@ -144,18 +390,9 @@ class BaseQuery:
 class QuerySet(BaseQuery):
 
     def update(self, **kwargs):
-        update_sql = "UPDATE {table} SET {placeholders} WHERE {query};"
-        query = f"{self._pk_field}=?"
-        values, placeholders = [], []
-
-        for key, val in kwargs.items():
-            values.append(val)
-            placeholders.append(f"{key}=?")
-
-        values.append(self._pk)
-        sql = update_sql.format(table=self._table, placeholders=', '.join(placeholders), query=query)
-        self.db.execute(sql, values)
-        self.db.commit()
+        sql, values = self._db_mapper._get_update_sql(self._table, self._pk, self._pk_field, **kwargs)
+        self._db.execute(sql, values)
+        self._db.commit()
 
 
 class Query(BaseQuery):
@@ -163,54 +400,44 @@ class Query(BaseQuery):
     Query class for making complex and advance queries
     """
 
-    def __init__(self, data, db, table, sql=None):
+    def __init__(self, data, table, fields=None, **kwargs):
         super().__init__(data)
-        self._db = db
         self._table = table
-        self._sql = sql
+        self._fields = fields
+        self._kwds = kwargs
         self.__state = None
-
-    def set_state(self, state):
-        self.__state = state
 
     @property
     def state(self):
         return self.__state
 
     @classmethod
-    def select(cls, db, table, fields):
+    def select(cls, table, fields):
+        db = Config().DATABASE
+        db_mapper = Config().DBMAPPER
+        sql = db_mapper._get_select_sql(table, fields)
         try:
-            temp_sql = f"SELECT {', '.join(fields)} FROM {table}"
-            sql = temp_sql + ';'
-            data = db.execute(sql).fetchall()
-            klass = cls(data, db, table, temp_sql)
+            data = db.fetchall(sql)
+            klass = cls(data, table, fields)
             klass.set_state('select')
         except sq.OperationalError as e:
             raise QueryError(str(e))
         return klass
 
     @classmethod
-    def _from_query(cls, data, db, table, sql):
-        return cls(data, db, table, sql)
+    def _from_query(cls, data, table, fields=None, **kwargs):
+        return cls(data, table, fields, **kwargs)
+
+    def set_state(self, state):
+        self.__state = state
 
     def where(self, **kwargs):
-        if self._sql is None:
+        if self._fields is None:
             raise QueryError(f"{self._table}: select method must be called before where method!")
 
-        query, values = [], []
-        where_sql = " WHERE {query}"
-
-        for key, val in kwargs.items():
-            values.append(val)
-            query.append(f"{key}=?")
-
-        where_sql = where_sql.format(query=' AND '.join(query))
-        temp_sql = self._sql + where_sql
-        sql = temp_sql + ';'
-        data = self._db.execute(sql, values).fetchall()
-        klass = self._from_query(data, self._db, self._table, temp_sql)
-        klass._where_sql = where_sql
-        klass._where_values = values
+        sql, values = self._db_mapper._get_select_where_sql(self._table, self._fields, **kwargs)
+        data = self._db.fetchall(sql, values)
+        klass = self._from_query(data, self._table, self._fields, **kwargs)
         klass.set_state('where')
         return klass
 
@@ -218,18 +445,7 @@ class Query(BaseQuery):
         if self.__state != 'where':
             raise QueryError(f"{self._table}: where method must be called before bulk_update method!")
 
-        where_sql = self._where_sql
-        where_values = self._where_values
-        temp_sql = 'UPDATE {table} SET {placeholders}'
-        placeholders, values = [], []
-
-        for key, val in kwargs.items():
-            placeholders.append(f"{key}=?")
-            values.append(val)
-
-        temp_sql = temp_sql.format(table=self._table, placeholders=', '.join(placeholders)) + where_sql
-        sql = temp_sql + ';'
-        values = values + where_values
+        sql, values = self._db_mapper._get_bulk_update_sql(self._table, self._kwds, **kwargs)
         self._db.execute(sql, values)
         self._db.commit()
 
@@ -237,7 +453,91 @@ class Query(BaseQuery):
 ####################################################
 #       MODEL BASE, MANAGER, AND MODEL CLASS
 ####################################################
-class ModelBaseMetaClass(type):
+class BaseDbManager:
+    """Base manager class for handling all databae operations"""
+
+
+class SQLModelManager(BaseDbManager):
+    """Manager for handling all SQL database operations"""
+
+    def __init__(self, model):
+        self._model = model
+        self._mapping = model.__mappings__
+        self._db = Config().DATABASE
+        self._db_mapper = Config().DBMAPPER
+
+    @property
+    def table_name(self):
+        return self._model.__table_name__
+
+    @property
+    def _table_fields(self):
+        fields = [x[0] for x in self._mapping.items()]
+        return fields
+
+    def all(self):
+        table_fields = self._table_fields
+        pk_field = self._get_primary_key_field()
+        pk_idx = table_fields.index(pk_field)
+        qs = self.select(table_fields).get_data
+        datas = map(lambda x: self.get(**{pk_field: x[pk_idx]}), qs)
+        return datas
+
+    def _create_table(self, commit=True):
+        sql = self._db_mapper._get_create_table_sql(self.table_name, **self._mapping)
+        self._db.execute(sql)
+        if commit:
+            self._db.commit()
+
+    def _get_primary_key_field(self):
+        return self._model.__pk__
+
+    def create(self, **kwargs):
+        return self.insert(**kwargs)
+
+    def insert(self, **kwargs):
+        try:
+            sql, values = self._db_mapper._get_insert_sql(self.table_name, **kwargs)
+            lastrowid = self._db.exec_lastrowid(sql, values)
+            self._db.commit()
+        except sq.OperationalError as e:
+            raise InsertError(str(e))
+        return lastrowid
+
+    def bulk_insert(self, *data):
+        for d in data:
+            if not isinstance(d, dict):
+                raise InsertError(f"bulk_insert accepts only dictionary values!")
+            sql, values = self._db_mapper._get_insert_sql(self.table_name, **d)
+            self._db.execute(sql, values)
+        self._db.commit()
+
+    def delete(self, **kwargs):
+        sql, values = self._db_mapper._get_delete_sql(self.table_name, **kwargs)
+        self._db.execute(sql, values)
+        self._db.commit()
+
+    def get(self, **kwargs):
+        sql, values = self._db_mapper._get_select_where_sql(self.table_name, ['*'], **kwargs)
+
+        try:
+            query_set = self._db.fetchone(sql, values)
+            data = dict(zip(self._table_fields, query_set))
+            pk_field = self._get_primary_key_field()
+            data['_table'] = self.table_name
+            data['_pk'] = data[pk_field]
+            data['_pk_field'] = pk_field
+            query_class = QuerySet(data)
+        except TypeError:
+            raise ModelDoesNotExist(f"{self.table_name}: No model matches the given query!")
+
+        return query_class
+
+    def select(self, fields):
+        return Query.select(self.table_name, fields)
+
+
+class SQLModelBaseMetaClass(type):
     """Metaclass for all models."""
 
     __instances = {}
@@ -303,130 +603,9 @@ class ModelBaseMetaClass(type):
         return new_class
 
 
-class ModelManager:
-    """Manager for handling all database operations"""
+class Model(metaclass=SQLModelBaseMetaClass):
+    """Model class for SQL Databases"""
 
-    def __init__(self, model):
-        self._model = model
-        self._mapping = model.__mappings__.items()
-        self._db = sq.connect(
-            database=Config.DB_PATH,
-            check_same_thread=Config.CHECK_SAME_THREAD
-        )
-
-    def all(self):
-        table_fields = self._table_fields
-        pk_field = self._get_primary_key_field()
-        pk_idx = table_fields.index(pk_field)
-        qs = self.select(table_fields).get_data
-        datas = map(lambda x: self.get(**{pk_field: x[pk_idx]}), qs)
-        return datas
-
-    @property
-    def table_name(self):
-        return self._model.__table_name__
-
-    def _create_table(self, commit=True):
-        fields = []
-        foreign_key_sql = []
-
-        for name, field in self._mapping:
-            if isinstance(field, ForeignKeyField):
-                foreign_key_sql.append(field._foreign_key_sql(name))
-            fields.append(f"{name} {field.sql}")
-
-        fields = ', '.join(fields)
-
-        sql = f"""
-            CREATE TABLE IF NOT EXISTS {self.table_name} (
-                {fields} {',' if foreign_key_sql else ''}
-                {', '.join(foreign_key_sql) if foreign_key_sql else ''}
-            );
-        """
-        self._db.execute(sql)
-        if commit:
-            self._db.commit()
-
-    def _get_primary_key_field(self):
-        return self._model.__pk__
-
-    @property
-    def _table_fields(self):
-        fields = [x[0] for x in self._mapping]
-        return fields
-
-    def create(self, **kwargs):
-        return self.insert(**kwargs)
-
-    def _get_insert_sql(self, **kwargs):
-        insert_sql = 'INSERT INTO {name} ({fields}) VALUES ({placeholders});'
-        fields, values, placeholders = [], [], []
-
-        for key, val in kwargs.items():
-            fields.append(key)
-            placeholders.append('?')
-            values.append(val)
-
-        sql = insert_sql.format(name=self.table_name, fields=', '.join(fields), placeholders=', '.join(placeholders))
-        return sql, values
-
-    def insert(self, **kwargs):
-        try:
-            sql, values = self._get_insert_sql(**kwargs)
-            cursor = self._db.execute(sql, values)
-            self._db.commit()
-        except sq.OperationalError as e:
-            raise InsertError(str(e))
-        return cursor.lastrowid
-
-    def bulk_insert(self, *data):
-        for d in data:
-            if not isinstance(d, dict):
-                raise InsertError(f"bulk_insert accepts only dictionary values!")
-            sql, values = self._get_insert_sql(**d)
-            self._db.execute(sql, values)
-        self._db.commit()
-
-    def delete(self, **kwargs):
-        delete_sql = 'DELETE FROM {table} WHERE {query};'
-        query, values = [], []
-
-        for key, val in kwargs.items():
-            values.append(val)
-            query.append(f'{key}=?')
-
-        sql = delete_sql.format(table=self.table_name, query=' AND '.join(query))
-        self._db.execute(sql, values)
-        self._db.commit()
-
-    def get(self, **kwargs):
-        get_sql = 'SELECT * FROM {table} WHERE {query}'
-        query, values = [], []
-
-        for key, val in kwargs.items():
-            values.append(val)
-            query.append(f'{key}=?')
-
-        try:
-            sql = get_sql.format(table=self.table_name, query=' AND '.join(query))
-            query_set = self._db.execute(sql, values).fetchone()
-            data = dict(zip(self._table_fields, query_set))
-            pk_field = self._get_primary_key_field()
-            data['_table'] = self.table_name
-            data['_pk'] = data[pk_field]
-            data['_pk_field'] = pk_field
-            query_class = QuerySet(data)
-            query_class.db = self._db
-        except TypeError:
-            raise ModelDoesNotExist(f"{self.table_name}: No model matches the given query!")
-
-        return query_class
-
-    def select(self, fields):
-        return Query.select(self._db, self.table_name, fields)
-
-
-class Model(metaclass=ModelBaseMetaClass):
     class Meta:
         db_name = None
         abstract = True
@@ -435,5 +614,5 @@ class Model(metaclass=ModelBaseMetaClass):
         # If the model is not abstract model then
         # create database table immediately the Model class is subclassed
         if cls._meta.abstract is False:
-            cls.objects = ModelManager(cls)
+            cls.objects = SQLModelManager(cls)
             cls.objects._create_table()
