@@ -49,7 +49,7 @@ class UrlDownloaderWorker(Thread):
 
 class CrawlerWorker(Thread):
     """
-    Fetches item web pages and scrapes or extract data and enqueues them in DatabaseScheduler
+    Fetches item web pages and scrapes or extract data and enqueues the data in DatabaseScheduler
     """
     url_wait_timeout: Optional[int] = 10
     scheduler: Scheduler = ItemUrlScheduler()
@@ -80,7 +80,7 @@ class CrawlerWorker(Thread):
 
 class DatabaseWorker(Thread):
     """
-    Receive scraped data from database scheduler and stores it in a persistent database
+    Receives scraped data from DatabaseScheduler and stores it in a persistent database
     """
     wait_timeout: Optional[int] = 10
     db_scheduler: Scheduler = DatabaseScheduler()

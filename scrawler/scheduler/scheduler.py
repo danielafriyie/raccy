@@ -39,13 +39,13 @@ class BaseScheduler(metaclass=SingletonMeta):
 
 class DatabaseScheduler(BaseScheduler):
     """
-    Database Scheduler: receives scraped item data from spider worker(s) and enques them
-    for feeding them to the database.
+    Receives scraped item data from CrawlerWorker and enques them
+    for feeding them to DatabaseWorker.
     """
 
 
 class ItemUrlScheduler(BaseScheduler):
     """
-    Item Url Scheduler: receives item urls from item url downloader worker and enqueues the
-    for feeding them to item spider worker
+    Receives item urls from UrlDownloaderWorker and enqueues them
+    for feeding them to CrawlerWorker
     """
