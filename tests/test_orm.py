@@ -7,7 +7,7 @@ sys.path.append(BASE_DIR)
 
 from scrawler import model
 from scrawler.orm.utils import is_abstract_model
-from scrawler.core.exceptions import InsertError, QueryError, ModelDoesNotExist
+from scrawler.core.exceptions import InsertError, QueryError, ModelDoesNotExist, ImproperlyConfigured
 
 db_path = os.path.join(BASE_DIR, 'test_db.sqlite3')
 config = model.Config()
@@ -33,6 +33,18 @@ class AbstractModel(model.Model):
         abstract = True
 
 
+class TestORMConfig(unittest.TestCase):
+
+    def setUp(self):
+        self.config = model.Config()
+
+    def test_config(self):
+        with self.assertRaises(ImproperlyConfigured):
+            self.config.DATABASE = 'this is database'
+        self.assertEqual(self.config, config)
+        self.assertEqual(self.config, model.Config())
+
+
 class TestSQLiteModelFields(unittest.TestCase):
 
     def _test_field(self, field, type_, sql, *field_args, **field_kwargs):
@@ -42,7 +54,8 @@ class TestSQLiteModelFields(unittest.TestCase):
         self.assertIsInstance(f, model.Field)
 
     def test_primary_key_field(self):
-        self._test_field(model.PrimaryKeyField, 'INTEGER PRIMARY KEY AUTOINCREMENT', 'INTEGER PRIMARY KEY AUTOINCREMENT')
+        self._test_field(model.PrimaryKeyField, 'INTEGER PRIMARY KEY AUTOINCREMENT',
+                         'INTEGER PRIMARY KEY AUTOINCREMENT')
 
     def test_charfield(self):
         self._test_field(model.CharField, 'VARCHAR', 'VARCHAR (60)', max_length=60)
