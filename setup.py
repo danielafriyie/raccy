@@ -11,9 +11,8 @@ install_requires = [
 
 ]
 
-exclude = (
-    '.idea', '.idea.*', 'bunny', 'bunny.*', 'env', 'env.*', 'tests', 'tests.*',
-    'logs', 'logs.*', 'screenshots', 'screenshots.*'
+include = (
+    'scrawler',
 )
 
 setuptools.setup(
@@ -23,6 +22,7 @@ setuptools.setup(
     long_description=long_des,
     long_description_content_type="text/markdown",
     url="https://github.com/danielafriyie/scrawler",
+    license='MIT',
     classifiers=[
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
@@ -34,7 +34,7 @@ setuptools.setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Development Status :: 5 - Production/Stable'
     ],
-    packages=setuptools.find_packages(exclude=exclude),
+    packages=setuptools.find_packages(include=include),
     install_requires=install_requires,
     python_requires=">=3.7",
 )
