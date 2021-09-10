@@ -31,6 +31,9 @@ class BaseCrawlerWorker(Thread):
         super().__init__(*args, **kwargs)
         self.driver = driver
 
+    def run(self):
+        self.job()
+
 
 class UrlDownloaderWorker(SingleInstanceWorker):
     """
@@ -80,9 +83,6 @@ class CrawlerWorker(BaseCrawlerWorker):
 
     def parse(self, url: str) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.parse() method is not implemented")
-
-    def run(self):
-        self.job()
 
 
 class DatabaseWorker(SingleInstanceWorker):
