@@ -28,3 +28,10 @@ class QueryError(TypeError):
 #######################################
 class CrawlerException(TypeError):
     pass
+
+
+#######################################
+#       SCHEDULER EXCEPTIONS
+######################################
+class SchedulerError(TypeError):
+    pass

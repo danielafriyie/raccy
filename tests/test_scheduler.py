@@ -7,9 +7,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(BASE_DIR)
 
 from scrawler import ItemUrlScheduler, DatabaseScheduler
+from scrawler.core.exceptions import SchedulerError
 
 
-class TestSingleton(unittest.TestCase):
+class TestSingleInstance(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -26,7 +27,7 @@ class TestSingleton(unittest.TestCase):
         self.assertEqual(self.is1, self.is2)
         self.assertEqual(self.is1.get_queue, self.is2.get_queue)
         for _ in range(500):
-            v = randint(5, 100)
+            v = dict(rand=randint(5, 100))
             self.ds1.put(v)
             self.ds3.put(v)
             self.is2.put(v)
@@ -36,7 +37,7 @@ class TestSingleton(unittest.TestCase):
         self.assertEqual(self.is1.queue(), self.is2.queue())
         self.assertEqual(self.is1.qsize(), self.is2.qsize())
         for _ in range(250):
-            v = randint(5, 100)
+            v = dict(rand=randint(5, 100))
             self.ds2.put(v)
             self.ds1.put(v)
         self.assertEqual(self.ds1.queue(), self.ds2.queue())
@@ -44,7 +45,7 @@ class TestSingleton(unittest.TestCase):
         self.assertEqual(self.is1.queue(), self.is2.queue())
         self.assertEqual(self.is1.qsize(), self.is2.qsize())
         for _ in range(5):
-            v = randint(5, 100)
+            v = {'rand': randint(5, 100)}
             self.ds3.put(v)
             self.is2.put(v)
         for _ in range(50):
@@ -60,11 +61,14 @@ class TestSingleton(unittest.TestCase):
         self.assertEqual(self.ds3.queue(), self.ds2.queue())
         self.assertEqual(self.is1.queue(), self.is2.queue())
         self.assertEqual(self.is1.qsize(), self.is2.qsize())
-        # self.assertEqual(self.ds1.items_enqueued, self.ds2.items_enqueued)
+
+        with self.assertRaises(SchedulerError):
+            self.ds3.put(['thsi is an item'])
+            self.ds1.put('item')
 
     def test_different_subclass_instance(self):
         for _ in range(2):
-            v = randint(5, 100)
+            v = dict(rand=randint(5, 100))
             self.ds1.put(v)
             self.ds2.put(v)
             self.is1.put(v)

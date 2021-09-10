@@ -1,6 +1,7 @@
 from queue import Queue
 
 from scrawler.core.meta import SingletonMeta
+from scrawler.core.exceptions import SchedulerError
 
 
 class BaseScheduler(metaclass=SingletonMeta):
@@ -42,6 +43,11 @@ class DatabaseScheduler(BaseScheduler):
     Receives scraped item data from CrawlerWorker and enques them
     for feeding them to DatabaseWorker.
     """
+
+    def put(self, item, *args, **kwargs):
+        if not isinstance(item, dict):
+            raise SchedulerError(f"{self.__class__.__name__} accepts only dictionary values!")
+        super().put(item, *args, **kwargs)
 
 
 class ItemUrlScheduler(BaseScheduler):

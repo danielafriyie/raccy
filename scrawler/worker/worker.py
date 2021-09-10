@@ -10,6 +10,7 @@ from selenium.webdriver import (
 )
 from selenium.common.exceptions import WebDriverException
 
+from scrawler.core.meta import SingletonMeta
 from scrawler.scheduler.scheduler import DatabaseScheduler, ItemUrlScheduler, BaseScheduler
 from scrawler.utils.driver import close_driver
 from scrawler.logger.logger import logger
@@ -19,14 +20,25 @@ Scheduler: Union[ItemUrlScheduler, BaseScheduler, Queue] = ...
 Driver: Union[Chrome, Firefox, Safari, Ie, Edge, Opera] = ...
 
 
-class UrlDownloaderWorker(Thread):
+class SingleInstanceWorker(Thread, metaclass=SingletonMeta):
+    log = logger()
+
+
+class BaseCrawlerWorker(Thread):
+    log = logger()
+
+    def __init__(self, driver: Driver, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.driver = driver
+
+
+class UrlDownloaderWorker(SingleInstanceWorker):
     """
     Resonsible for downloading item(s) to be scraped urls and enqueue(s) them in ItemUrlScheduler
     """
     start_url: str = None
     scheduler: Scheduler = ItemUrlScheduler()
     mutex = Lock()
-    log = logger()
 
     def __init__(self, driver: Driver, *args, **kwargs):
         Thread.__init__(self, *args, **kwargs)
@@ -44,21 +56,16 @@ class UrlDownloaderWorker(Thread):
             self.job()
         except WebDriverException as e:
             self.log.exception(e)
-            close_driver(self.driver, self.log)
+        close_driver(self.driver, self.log)
 
 
-class CrawlerWorker(Thread):
+class CrawlerWorker(BaseCrawlerWorker):
     """
     Fetches item web pages and scrapes or extract data and enqueues the data in DatabaseScheduler
     """
     url_wait_timeout: Optional[int] = 10
     scheduler: Scheduler = ItemUrlScheduler()
     db_scheduler: Scheduler = DatabaseScheduler()
-    log = logger()
-
-    def __init__(self, driver: Driver, *args, **kwargs):
-        Thread.__init__(self, *args, **kwargs)
-        self.driver = driver
 
     def job(self):
         while True:
@@ -68,8 +75,8 @@ class CrawlerWorker(Thread):
                 self.scheduler.task_done()
             except Empty:
                 self.log.info('Empty scheduler, closing.................')
-                close_driver(self.driver, self.log)
-                return
+                break
+        close_driver(self.driver, self.log)
 
     def parse(self, url: str) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.parse() method is not implemented")
@@ -78,7 +85,7 @@ class CrawlerWorker(Thread):
         self.job()
 
 
-class DatabaseWorker(Thread):
+class DatabaseWorker(SingleInstanceWorker):
     """
     Receives scraped data from DatabaseScheduler and stores it in a persistent database
     """
@@ -94,6 +101,7 @@ class DatabaseWorker(Thread):
             try:
                 data = self.db_scheduler.get(timeout=self.wait_timeout)
                 self.save(data)
+                self.db_scheduler.task_done()
             except Empty:
                 self.log.info('Empty scheduler, closing.................')
                 return
