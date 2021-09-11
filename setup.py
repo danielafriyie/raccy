@@ -37,7 +37,7 @@ setuptools.setup(
     long_description=long_des,
     long_description_content_type="text/markdown",
     url="https://github.com/danielafriyie/scrawler",
-    license='MIT',
+    license='Apache License, Version 2.0',
     classifiers=[
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
