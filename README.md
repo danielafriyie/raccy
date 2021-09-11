@@ -1,7 +1,7 @@
-# SCRAWLER
+# RACCY
 
 ### OVERVIEW
-Scrawler is a multithreaded web scraping library based on selenium with 
+Raccy is a multithreaded web scraping library based on selenium with 
 built in ORM feature. It can be used for a wide range of purposes, from data mining to 
 monitoring and automated testing.
 Currently the ORM feature supports only SQLite Database.
@@ -26,10 +26,10 @@ Currently the ORM feature supports only SQLite Database.
 ### TUTORIAL
 
 ```python
-from scrawler import (
+from raccy import (
     model, UrlDownloaderWorker, CrawlerWorker, DatabaseWorker
 )
-from scrawler.utils.driver import next_btn_handler, close_driver
+from raccy.utils.driver import next_btn_handler, close_driver
 from selenium import webdriver
 from shutil import which
 

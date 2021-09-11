@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 import setuptools
-from scrawler import __version__
+from raccy import __version__
 
 with open('README.md', 'r', encoding='utf-8') as f:
     long_des = f.read()
@@ -27,18 +27,18 @@ install_requires = [
 ]
 
 include = (
-    'scrawler', 'scrawler.*'
+    'raccy', 'raccy.*'
 )
 
 setuptools.setup(
-    name="Scrawler",
+    name="raccy",
     version=__version__,
     description="Web Scraping Library Based on Selenium",
     long_description=long_des,
     long_description_content_type="text/markdown",
     author='Daniel Afriyie',
     author_email='danielafriyie98@gmail.com',
-    url="https://github.com/danielafriyie/scrawler",
+    url="https://github.com/danielafriyie/raccy",
     license='Apache License, Version 2.0',
     classifiers=[
         'Programming Language :: Python',

@@ -1,7 +1,7 @@
-from scrawler import (
+from raccy import (
     model, UrlDownloaderWorker, CrawlerWorker, DatabaseWorker
 )
-from scrawler.utils.driver import next_btn_handler, close_driver
+from raccy.utils.driver import next_btn_handler, close_driver
 from selenium import webdriver
 from shutil import which
 

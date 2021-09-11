@@ -15,8 +15,8 @@ limitations under the License.
 """
 import sqlite3 as sq
 
-from scrawler.core.meta import SingletonMeta
-from scrawler.core.exceptions import ModelDoesNotExist, InsertError, QueryError, ImproperlyConfigured
+from raccy.core.meta import SingletonMeta
+from raccy.core.exceptions import ModelDoesNotExist, InsertError, QueryError, ImproperlyConfigured
 
 
 #################################################

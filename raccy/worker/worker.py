@@ -22,11 +22,11 @@ from selenium.webdriver import (
 )
 from selenium.common.exceptions import WebDriverException
 
-from scrawler.core.meta import SingletonMeta
-from scrawler.scheduler.scheduler import DatabaseScheduler, ItemUrlScheduler, BaseScheduler
-from scrawler.utils.driver import close_driver
-from scrawler.logger.logger import logger
-from scrawler.core.exceptions import CrawlerException
+from raccy.core.meta import SingletonMeta
+from raccy.scheduler.scheduler import DatabaseScheduler, ItemUrlScheduler, BaseScheduler
+from raccy.utils.driver import close_driver
+from raccy.logger.logger import logger
+from raccy.core.exceptions import CrawlerException
 
 Scheduler: Union[ItemUrlScheduler, BaseScheduler, Queue] = ...
 Driver: Union[Chrome, Firefox, Safari, Ie, Edge, Opera] = ...

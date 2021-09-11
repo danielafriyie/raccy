@@ -19,9 +19,9 @@ from selenium.webdriver import (
     Chrome, Firefox, Safari, Ie, Edge, Opera
 )
 
-from scrawler.utils.driver import driver_wait
-from scrawler.utils.utils import download_delay
-from scrawler.logger.logger import logger
+from raccy.utils.driver import driver_wait
+from raccy.utils.utils import download_delay
+from raccy.logger.logger import logger
 
 
 class BaseForm:

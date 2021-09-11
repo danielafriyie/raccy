@@ -5,9 +5,9 @@ import sys
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(BASE_DIR)
 
-from scrawler import model
-from scrawler.orm.utils import is_abstract_model
-from scrawler.core.exceptions import InsertError, QueryError, ModelDoesNotExist, ImproperlyConfigured
+from raccy import model
+from raccy.orm.utils import is_abstract_model
+from raccy.core.exceptions import InsertError, QueryError, ModelDoesNotExist, ImproperlyConfigured
 
 db_path = os.path.join(BASE_DIR, 'test_db.sqlite3')
 config = model.Config()

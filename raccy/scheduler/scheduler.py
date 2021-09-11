@@ -15,8 +15,8 @@ limitations under the License.
 """
 from queue import Queue
 
-from scrawler.core.meta import SingletonMeta
-from scrawler.core.exceptions import SchedulerError
+from raccy.core.meta import SingletonMeta
+from raccy.core.exceptions import SchedulerError
 
 
 class BaseScheduler(metaclass=SingletonMeta):

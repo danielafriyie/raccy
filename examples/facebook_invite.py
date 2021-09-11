@@ -1,8 +1,8 @@
 from selenium import webdriver
 from shutil import which
-from scrawler import BaseCrawlerWorker
-from scrawler.utils.driver import close_driver, driver_wait
-from scrawler.utils.utils import random_delay
+from raccy import BaseCrawlerWorker
+from raccy.utils.driver import close_driver, driver_wait
+from raccy.utils.utils import random_delay
 
 
 def get_driver():
