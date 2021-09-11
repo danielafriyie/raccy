@@ -27,7 +27,7 @@ install_requires = [
 ]
 
 include = (
-    'scrawler',
+    'scrawler', 'scrawler.*'
 )
 
 setuptools.setup(
