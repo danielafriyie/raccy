@@ -36,6 +36,8 @@ setuptools.setup(
     description="Web Scraping Library Based on Selenium",
     long_description=long_des,
     long_description_content_type="text/markdown",
+    author='Daniel Afriyie',
+    author_email='danielafriyie98@gmail.com',
     url="https://github.com/danielafriyie/scrawler",
     license='Apache License, Version 2.0',
     classifiers=[
