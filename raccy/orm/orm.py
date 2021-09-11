@@ -50,6 +50,7 @@ class BaseDbMapper:
 class BaseSQLDbMapper(BaseDbMapper):
     """Base Class for all SQL type database mapper"""
 
+    # DATA TYPES AND DEFINITIONS
     PRIMARYKEYFIELD = None
     CHARFIELD = None
     TEXTFIELD = None
@@ -59,6 +60,17 @@ class BaseSQLDbMapper(BaseDbMapper):
     DATEFIELD = None
     DATETIMEFIELD = None
     FOREIGNKEYFIELD = None
+
+    # FILTERING DATA
+    GT = None
+    LT = None
+    EQ = None
+    IN = None
+    GTE = None
+    LTE = None
+    LIKE = None
+    DISTINCT = None
+    BETWEEN = None
 
     def _render_foreign_key_sql_stmt(self, model, field_name, on_field, on_delete='CASCADE', on_update='CASCADE'):
         raise NotImplementedError(f"{self.__class__.__name__}: _render_foreign_key_sql_stmt is not implemented!")
@@ -99,6 +111,16 @@ class SQLiteDbMapper(BaseSQLDbMapper):
     DATEFIELD = "DATE"
     DATETIMEFIELD = "DATETIME"
     FOREIGNKEYFIELD = "INTEGER"
+
+    GT = ">"
+    LT = "<"
+    EQ = "="
+    IN = None
+    GTE = ">="
+    LTE = "<="
+    LIKE = None
+    DISTINCT = None
+    BETWEEN = None
 
     def _render_foreign_key_sql_stmt(self, model, field_name, on_field, on_delete='CASCADE', on_update='CASCADE'):
         sql = f"""
@@ -202,13 +224,16 @@ class SQLiteDbMapper(BaseSQLDbMapper):
         sql = select_sql.format(table=table, fields=', '.join(fields))
         return sql
 
-    def _render_select_where_sql_stmt(self, table_name, fields, **kwargs):
+    def _render_select_where_sql_stmt(self, table_name, fields, *args):
         select_sql = 'SELECT {fields} FROM {table} WHERE {query};'
 
-        query, values = [], []
-        for key, val in kwargs.items():
-            values.append(val)
-            query.append(f"{key}=?")
+        query, operators, values = [], [], []
+        for d in args:
+            field = d['field']
+            operator = d['operator']
+            value = d['value']
+            query.append(f"{field}{operator}?")
+            values.append(value)
 
         sql = select_sql.format(fields=', '.join(fields), table=table_name, query=' AND '.join(query))
         return sql, values
@@ -290,6 +315,7 @@ class Field:
         self._null = null
         self._unique = unique
         self._default = default
+        self._field_name = None
 
     @property
     def sql(self):
@@ -305,6 +331,31 @@ class Field:
     @property
     def _name(self):
         return self.__class__.__name__
+
+    def _render_compare_dict(self, operator, other):
+        return {
+            'field': self._field_name,
+            'operator': operator,
+            'value': other
+        }
+
+    def __gt__(self, other):
+        return self._render_compare_dict('>', other)
+
+    def __lt__(self, other):
+        return self._render_compare_dict('<', other)
+
+    def __eq__(self, other):
+        return self._render_compare_dict('=', other)
+
+    def __le__(self, other):
+        return self._render_compare_dict('<=', other)
+
+    def __ge__(self, other):
+        return self._render_compare_dict('>=', other)
+
+    def __ne__(self, other):
+        return self._render_compare_dict("<>", other)
 
 
 class PrimaryKeyField(Field):
@@ -441,13 +492,13 @@ class Query(BaseQuery):
     def set_state(self, state):
         self.__state = state
 
-    def where(self, **kwargs):
+    def where(self, *args):
         if self._fields is None:
             raise QueryError(f"{self._table}: select method must be called before where method!")
 
-        sql, values = self._db_mapper._render_select_where_sql_stmt(self._table, self._fields, **kwargs)
+        sql, values = self._db_mapper._render_select_where_sql_stmt(self._table, self._fields, *args)
         data = self._db.fetchall(sql, values)
-        klass = self._from_query(data, self._table, self._fields, **kwargs)
+        klass = self._from_query(data, self._table, self._fields)
         klass.set_state('where')
         return klass
 
@@ -561,16 +612,19 @@ class SQLModelBaseMetaClass(type):
     def _get_meta_data(cls, attr):
         _abstract = False
         _db_name = None
+        _create_table = True
 
         if 'Meta' in attr:
             _meta = attr['Meta']
             _abstract = getattr(_meta, 'abstract', _abstract)
             _db_name = getattr(_meta, 'db_name', _db_name)
+            _create_table = getattr(_meta, 'create_table', _create_table)
             del attr['Meta']
 
         class _Meta:
             abstract = _abstract
             db_name = _db_name
+            create_table = _create_table
 
         return _Meta
 
@@ -589,6 +643,7 @@ class SQLModelBaseMetaClass(type):
                 has_primary_key = True
                 primary_key_field = key
             if isinstance(value, Field):
+                value._field_name = key
                 mappings[key] = value
 
         # Delete fields that are already stored in mapping
@@ -626,4 +681,11 @@ class Model(metaclass=SQLModelBaseMetaClass):
         # create database table immediately the Model class is subclassed
         if cls._meta.abstract is False:
             cls.objects = SQLModelManager(cls)
-            cls.objects._create_table()
+            if cls._meta.create_table:
+                cls.objects._create_table()
+
+    def __getattribute__(self, item):
+        mappings = object.__getattribute__(self, '__mappings__')
+        if item in mappings:
+            return mappings[item]
+        return object.__getattribute__(self, item)
