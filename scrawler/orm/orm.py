@@ -536,6 +536,7 @@ class SQLModelManager(BaseDbManager):
             pk_field = self._get_primary_key_field()
             data['_table'] = self.table_name
             data['_pk'] = data[pk_field]
+            data['id'] = data[pk_field]
             data['_pk_field'] = pk_field
             query_class = QuerySet(data)
         except TypeError:
