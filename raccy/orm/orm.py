@@ -65,6 +65,7 @@ class BaseSQLDbMapper(BaseDbMapper):
     GT = None
     LT = None
     EQ = None
+    NE = None
     IN = None
     GTE = None
     LTE = None
@@ -115,6 +116,7 @@ class SQLiteDbMapper(BaseSQLDbMapper):
     GT = ">"
     LT = "<"
     EQ = "="
+    NE = "<>"
     IN = None
     GTE = ">="
     LTE = "<="
@@ -340,22 +342,22 @@ class Field:
         }
 
     def __gt__(self, other):
-        return self._render_compare_dict('>', other)
+        return self._render_compare_dict(self._db_mapper.GT, other)
 
     def __lt__(self, other):
-        return self._render_compare_dict('<', other)
+        return self._render_compare_dict(self._db_mapper.LT, other)
 
     def __eq__(self, other):
-        return self._render_compare_dict('=', other)
+        return self._render_compare_dict(self._db_mapper.EQ, other)
 
     def __le__(self, other):
-        return self._render_compare_dict('<=', other)
+        return self._render_compare_dict(self._db_mapper.LTE, other)
 
     def __ge__(self, other):
-        return self._render_compare_dict('>=', other)
+        return self._render_compare_dict(self._db_mapper.GTE, other)
 
     def __ne__(self, other):
-        return self._render_compare_dict("<>", other)
+        return self._render_compare_dict(self._db_mapper.NE, other)
 
 
 class PrimaryKeyField(Field):
