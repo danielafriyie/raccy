@@ -20,10 +20,7 @@ with open('README.md', 'r', encoding='utf-8') as f:
     long_des = f.read()
 
 install_requires = [
-    'lxml>=4.6.3',
     'selenium>=3.141.0',
-    'urllib3>=1.26.4'
-
 ]
 
 include = (
