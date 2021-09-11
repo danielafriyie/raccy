@@ -147,7 +147,7 @@ class TestModels(unittest.TestCase):
         id_ = self.author1.objects.create(**author_data)
         a_sql = 'INSERT INTO author (name, age) VALUES (?, ?);'
         self.assertEqual(
-            self.author1.objects._db_mapper._get_insert_sql(self.author1.objects.table_name, **author_data)[0],
+            self.author1.objects._db_mapper._render_insert_sql_stmt(self.author1.objects.table_name, **author_data)[0],
             a_sql
         )
         self.post1.objects.insert(author_id=id_, post='This is a test post')

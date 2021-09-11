@@ -60,32 +60,32 @@ class BaseSQLDbMapper(BaseDbMapper):
     DATETIMEFIELD = None
     FOREIGNKEYFIELD = None
 
-    def _get_foreign_key_sql(self, model, field_name, on_field, on_delete='CASCADE', on_update='CASCADE'):
-        raise NotImplementedError(f"{self.__class__.__name__}: _get_foreign_key_sql is not implemented!")
+    def _render_foreign_key_sql_stmt(self, model, field_name, on_field, on_delete='CASCADE', on_update='CASCADE'):
+        raise NotImplementedError(f"{self.__class__.__name__}: _render_foreign_key_sql_stmt is not implemented!")
 
-    def _get_field_sql(self, type_, max_length=None, null=True, unique=False, default=None):
-        raise NotImplementedError(f"{self.__class__.__name__}: _get_field_sql is not implemented!")
+    def _render_field_sql_stmt(self, type_, max_length=None, null=True, unique=False, default=None):
+        raise NotImplementedError(f"{self.__class__.__name__}: _render_field_sql_stmt is not implemented!")
 
-    def _get_create_table_sql(self, table_name, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}: _get_create_table_sql is not implemented!")
+    def _render_create_table_sql_stmt(self, table_name, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}: _render_create_table_sql_stmt is not implemented!")
 
-    def _get_insert_sql(self, table_name, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}: _get_insert_sql is not implemented!")
+    def _render_insert_sql_stmt(self, table_name, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}: _render_insert_sql_stmt is not implemented!")
 
-    def _get_update_sql(self, table_name, pk, pk_field, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}: _get_update_sql is not implemented!")
+    def _render_update_sql_stmt(self, table_name, pk, pk_field, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}: _render_update_sql_stmt is not implemented!")
 
-    def _get_bulk_update_sql(self, table_name, query_dict, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}: _get_bulk_update_sql is not implemented!")
+    def _render_bulk_update_sql_stmt(self, table_name, query_dict, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}: _render_bulk_update_sql_stmt is not implemented!")
 
-    def _get_delete_sql(self, table_name, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}: _get_delete_sql is not implemented!")
+    def _render_delete_sql_stmt(self, table_name, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}: _render_delete_sql_stmt is not implemented!")
 
-    def _get_select_sql(self, table, fields):
-        raise NotImplementedError(f"{self.__class__.__name__}: _get_select_sql is not implemented!")
+    def _render_select_sql_stmt(self, table, fields):
+        raise NotImplementedError(f"{self.__class__.__name__}: _render_select_sql_stmt is not implemented!")
 
-    def _get_select_where_sql(self, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}: _get_select_where_sql is not implemented!")
+    def _render_select_where_sql_stmt(self, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}: _render_select_where_sql_stmt is not implemented!")
 
 
 class SQLiteDbMapper(BaseSQLDbMapper):
@@ -100,7 +100,7 @@ class SQLiteDbMapper(BaseSQLDbMapper):
     DATETIMEFIELD = "DATETIME"
     FOREIGNKEYFIELD = "INTEGER"
 
-    def _get_foreign_key_sql(self, model, field_name, on_field, on_delete='CASCADE', on_update='CASCADE'):
+    def _render_foreign_key_sql_stmt(self, model, field_name, on_field, on_delete='CASCADE', on_update='CASCADE'):
         sql = f"""
             FOREIGN KEY ({field_name})
             REFERENCES {model} ({on_field}) 
@@ -109,7 +109,7 @@ class SQLiteDbMapper(BaseSQLDbMapper):
         """
         return sql
 
-    def _get_field_sql(self, type_, max_length=None, null=True, unique=False, default=None):
+    def _render_field_sql_stmt(self, type_, max_length=None, null=True, unique=False, default=None):
         sql = f'{type_}'
         if max_length:
             sql = sql + f' ({max_length})'
@@ -121,7 +121,7 @@ class SQLiteDbMapper(BaseSQLDbMapper):
             sql = sql + f' DEFAULT {default}'
         return sql
 
-    def _get_create_table_sql(self, table_name, **kwargs):
+    def _render_create_table_sql_stmt(self, table_name, **kwargs):
         fields = []
         foreign_key_sql = []
 
@@ -143,7 +143,7 @@ class SQLiteDbMapper(BaseSQLDbMapper):
             """
         return sql
 
-    def _get_insert_sql(self, table_name, **kwargs):
+    def _render_insert_sql_stmt(self, table_name, **kwargs):
         insert_sql = 'INSERT INTO {name} ({fields}) VALUES ({placeholders});'
         fields, values, placeholders = [], [], []
 
@@ -155,7 +155,7 @@ class SQLiteDbMapper(BaseSQLDbMapper):
         sql = insert_sql.format(name=table_name, fields=', '.join(fields), placeholders=', '.join(placeholders))
         return sql, values
 
-    def _get_update_sql(self, table_name, pk, pk_field, **kwargs):
+    def _render_update_sql_stmt(self, table_name, pk, pk_field, **kwargs):
         update_sql = "UPDATE {table} SET {placeholders} WHERE {query};"
         query = f"{pk_field}=?"
         values, placeholders = [], []
@@ -168,7 +168,7 @@ class SQLiteDbMapper(BaseSQLDbMapper):
         sql = update_sql.format(table=table_name, placeholders=', '.join(placeholders), query=query)
         return sql, values
 
-    def _get_bulk_update_sql(self, table_name, query_dict, **kwargs):
+    def _render_bulk_update_sql_stmt(self, table_name, query_dict, **kwargs):
         update_sql = 'UPDATE {table} SET {placeholders} WHERE {query}'
         placeholders, values = [], []
         query_vals, query_placeholders = [], []
@@ -186,7 +186,7 @@ class SQLiteDbMapper(BaseSQLDbMapper):
         values = values + query_vals
         return sql, values
 
-    def _get_delete_sql(self, table_name, **kwargs):
+    def _render_delete_sql_stmt(self, table_name, **kwargs):
         delete_sql = 'DELETE FROM {table} WHERE {query};'
         query, values = [], []
 
@@ -197,12 +197,12 @@ class SQLiteDbMapper(BaseSQLDbMapper):
         sql = delete_sql.format(table=table_name, query=' AND '.join(query))
         return sql, values
 
-    def _get_select_sql(self, table, fields):
+    def _render_select_sql_stmt(self, table, fields):
         select_sql = 'SELECT {fields} FROM {table};'
         sql = select_sql.format(table=table, fields=', '.join(fields))
         return sql
 
-    def _get_select_where_sql(self, table_name, fields, **kwargs):
+    def _render_select_where_sql_stmt(self, table_name, fields, **kwargs):
         select_sql = 'SELECT {fields} FROM {table} WHERE {query};'
 
         query, values = [], []
@@ -293,7 +293,7 @@ class Field:
 
     @property
     def sql(self):
-        _sql = self._db_mapper._get_field_sql(
+        _sql = self._db_mapper._render_field_sql_stmt(
             self._type,
             max_length=self._max_length,
             null=self._null,
@@ -365,7 +365,7 @@ class ForeignKeyField(Field):
         self.__on_update = on_update
 
     def _foreign_key_sql(self, field_name):
-        sql = self._db_mapper._get_foreign_key_sql(
+        sql = self._db_mapper._render_foreign_key_sql_stmt(
             model=self.__model.__table_name__,
             field_name=field_name,
             on_field=self.__on_field,
@@ -400,7 +400,7 @@ class BaseQuery:
 class QuerySet(BaseQuery):
 
     def update(self, **kwargs):
-        sql, values = self._db_mapper._get_update_sql(self._table, self._pk, self._pk_field, **kwargs)
+        sql, values = self._db_mapper._render_update_sql_stmt(self._table, self._pk, self._pk_field, **kwargs)
         self._db.execute(sql, values)
         self._db.commit()
 
@@ -425,7 +425,7 @@ class Query(BaseQuery):
     def select(cls, table, fields):
         db = Config().DATABASE
         db_mapper = Config().DBMAPPER
-        sql = db_mapper._get_select_sql(table, fields)
+        sql = db_mapper._render_select_sql_stmt(table, fields)
         try:
             data = db.fetchall(sql)
             klass = cls(data, table, fields)
@@ -445,7 +445,7 @@ class Query(BaseQuery):
         if self._fields is None:
             raise QueryError(f"{self._table}: select method must be called before where method!")
 
-        sql, values = self._db_mapper._get_select_where_sql(self._table, self._fields, **kwargs)
+        sql, values = self._db_mapper._render_select_where_sql_stmt(self._table, self._fields, **kwargs)
         data = self._db.fetchall(sql, values)
         klass = self._from_query(data, self._table, self._fields, **kwargs)
         klass.set_state('where')
@@ -455,7 +455,7 @@ class Query(BaseQuery):
         if self.__state != 'where':
             raise QueryError(f"{self._table}: where method must be called before bulk_update method!")
 
-        sql, values = self._db_mapper._get_bulk_update_sql(self._table, self._kwds, **kwargs)
+        sql, values = self._db_mapper._render_bulk_update_sql_stmt(self._table, self._kwds, **kwargs)
         self._db.execute(sql, values)
         self._db.commit()
 
@@ -494,7 +494,7 @@ class SQLModelManager(BaseDbManager):
         return datas
 
     def _create_table(self, commit=True):
-        sql = self._db_mapper._get_create_table_sql(self.table_name, **self._mapping)
+        sql = self._db_mapper._render_create_table_sql_stmt(self.table_name, **self._mapping)
         self._db.execute(sql)
         if commit:
             self._db.commit()
@@ -507,7 +507,7 @@ class SQLModelManager(BaseDbManager):
 
     def insert(self, **kwargs):
         try:
-            sql, values = self._db_mapper._get_insert_sql(self.table_name, **kwargs)
+            sql, values = self._db_mapper._render_insert_sql_stmt(self.table_name, **kwargs)
             lastrowid = self._db.exec_lastrowid(sql, values)
             self._db.commit()
         except sq.OperationalError as e:
@@ -518,17 +518,17 @@ class SQLModelManager(BaseDbManager):
         for d in data:
             if not isinstance(d, dict):
                 raise InsertError(f"bulk_insert accepts only dictionary values!")
-            sql, values = self._db_mapper._get_insert_sql(self.table_name, **d)
+            sql, values = self._db_mapper._render_insert_sql_stmt(self.table_name, **d)
             self._db.execute(sql, values)
         self._db.commit()
 
     def delete(self, **kwargs):
-        sql, values = self._db_mapper._get_delete_sql(self.table_name, **kwargs)
+        sql, values = self._db_mapper._render_delete_sql_stmt(self.table_name, **kwargs)
         self._db.execute(sql, values)
         self._db.commit()
 
     def get(self, **kwargs):
-        sql, values = self._db_mapper._get_select_where_sql(self.table_name, ['*'], **kwargs)
+        sql, values = self._db_mapper._render_select_where_sql_stmt(self.table_name, ['*'], **kwargs)
 
         try:
             query_set = self._db.fetchone(sql, values)
