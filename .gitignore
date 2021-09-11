@@ -32,3 +32,4 @@ todos.xlsx
 *.sqlite3
 rabbit.py
 facebook_invites.py
+raccy.egg-info

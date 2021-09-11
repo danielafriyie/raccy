@@ -23,6 +23,12 @@ Currently the ORM feature supports only SQLite Database.
     
 * **DatabaseWorker:** receives scraped data from DatabaseScheduler and stores it in a persistent database.
 
+### INSTALL
+
+```shell script
+pip install raccy
+```
+
 ### TUTORIAL
 
 ```python
