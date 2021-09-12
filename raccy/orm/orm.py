@@ -29,7 +29,7 @@ class Config(metaclass=SingletonMeta):
     def __setattr__(self, key, value):
         if key == 'DATABASE':
             if not isinstance(value, BaseDatabase):
-                raise ImproperlyConfigured(f"{self.__class__.__name__}: DATABASE must be an instance of BaseDatabase!")
+                raise ImproperlyConfigured(f"{self.__class__.__name__}: DATABASE must be an instance of BaseDatabase")
             object.__setattr__(self, 'DBMAPPER', value.DB_MAPPER)
         object.__setattr__(self, key, value)
 
@@ -38,6 +38,9 @@ class Config(metaclass=SingletonMeta):
             if object.__getattribute__(self, 'DATABASE') is None:
                 raise ImproperlyConfigured(f"{self.__class__.__name__}: DATABASE or DBMAPPER is None!")
         return object.__getattribute__(self, item)
+
+
+_config = Config()
 
 
 ####################################################
@@ -311,7 +314,7 @@ class Field:
     """Base class for all field types"""
 
     def __init__(self, type_, max_length=None, null=True, unique=False, default=None):
-        self._db_mapper = Config().DBMAPPER
+        self._db_mapper = _config.DBMAPPER
         self._type = getattr(self._db_mapper, type_)
         self._max_length = max_length
         self._null = null
@@ -436,8 +439,8 @@ class BaseQuery:
 
     def __init__(self, data):
         self._data = data
-        self._db = Config().DATABASE
-        self._db_mapper = Config().DBMAPPER
+        self._db = _config.DATABASE
+        self._db_mapper = _config.DBMAPPER
 
     @property
     def get_data(self):
@@ -476,8 +479,8 @@ class Query(BaseQuery):
 
     @classmethod
     def select(cls, table, fields):
-        db = Config().DATABASE
-        db_mapper = Config().DBMAPPER
+        db = _config.DATABASE
+        db_mapper = _config.DBMAPPER
         sql = db_mapper._render_select_sql_stmt(table, fields)
         try:
             data = db.fetchall(sql)
@@ -526,8 +529,8 @@ class SQLModelManager(BaseDbManager):
     def __init__(self, model):
         self._model = model
         self._mapping = model.__mappings__
-        self._db = Config().DATABASE
-        self._db_mapper = Config().DBMAPPER
+        self._db = _config.DATABASE
+        self._db_mapper = _config.DBMAPPER
 
     @property
     def table_name(self):
