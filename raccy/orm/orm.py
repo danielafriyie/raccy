@@ -19,6 +19,18 @@ from raccy.core.meta import SingletonMeta
 from raccy.core.exceptions import ModelDoesNotExist, InsertError, QueryError, ImproperlyConfigured
 
 
+####################################################
+#       UTILITY FUNCTIONS
+####################################################
+def render_sql_dict(field, operand, value):
+    sql_dict = {
+        'field': field,
+        'operand': operand,
+        'value': value
+    }
+    return sql_dict
+
+
 #################################################
 #       DATABASE CONFIGURATION
 #################################################
@@ -73,8 +85,9 @@ class BaseSQLDbMapper(BaseDbMapper):
     GTE = None
     LTE = None
     LIKE = None
-    DISTINCT = None
+    LIMIT = None
     BETWEEN = None
+    DISTINCT = None
 
     def _render_foreign_key_sql_stmt(self, model, field_name, on_field, on_delete='CASCADE', on_update='CASCADE'):
         raise NotImplementedError(f"{self.__class__.__name__}: _render_foreign_key_sql_stmt is not implemented!")
@@ -97,11 +110,18 @@ class BaseSQLDbMapper(BaseDbMapper):
     def _render_delete_sql_stmt(self, table_name, **kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}: _render_delete_sql_stmt is not implemented!")
 
-    def _render_select_sql_stmt(self, table, fields):
+    def _render_select_sql_stmt(self, table, fields, distinct=False):
         raise NotImplementedError(f"{self.__class__.__name__}: _render_select_sql_stmt is not implemented!")
 
-    def _render_select_where_sql_stmt(self, **kwargs):
+    def _render_select_where_sql_stmt(self, *query):
         raise NotImplementedError(f"{self.__class__.__name__}: _render_select_where_sql_stmt is not implemented!")
+
+    def _render_limit_sql_stmt(self, value):
+        raise NotImplementedError(f"{self.__class__.__name__}: _render_limit_sql_stmt is not implemented!")
+
+    __interim_sql__ = None
+    __interim_values__ = None
+    __sql_dict__ = None
 
 
 class SQLiteDbMapper(BaseSQLDbMapper):
@@ -120,12 +140,24 @@ class SQLiteDbMapper(BaseSQLDbMapper):
     LT = "<"
     EQ = "="
     NE = "<>"
-    IN = None
     GTE = ">="
     LTE = "<="
-    LIKE = None
-    DISTINCT = None
-    BETWEEN = None
+    LIKE = 'LIKE'
+    LIMIT = 'LIMIT'
+    DISTINCT = 'DISTINCT'
+
+    def _join_sql_stmt(self, *statements, values=None):
+        stmts = ''
+        for stmt in statements:
+            stmts += stmt
+        self.__interim_sql__ = stmts
+        self.__interim_values__ = values
+        return self.__interim_sql__, self.__interim_values__
+
+    def _render_sql_stmt(self, *statements, values=None):
+        sql, values = self._join_sql_stmt(*statements, values=values)
+        sql = sql + ';'
+        return sql, values
 
     def _render_foreign_key_sql_stmt(self, model, field_name, on_field, on_delete='CASCADE', on_update='CASCADE'):
         sql = f"""
@@ -144,7 +176,7 @@ class SQLiteDbMapper(BaseSQLDbMapper):
             sql = sql + ' NOT NULL'
         if unique:
             sql = sql + ' UNIQUE'
-        if default:
+        if default is False or default:
             sql = sql + f' DEFAULT {default}'
         return sql
 
@@ -195,22 +227,23 @@ class SQLiteDbMapper(BaseSQLDbMapper):
         sql = update_sql.format(table=table_name, placeholders=', '.join(placeholders), query=query)
         return sql, values
 
-    def _render_bulk_update_sql_stmt(self, table_name, query_dict, **kwargs):
-        update_sql = 'UPDATE {table} SET {placeholders} WHERE {query}'
-        placeholders, values = [], []
-        query_vals, query_placeholders = [], []
+    def _render_bulk_update_sql_stmt(self, table_name, **kwargs):
+        update_sql = 'UPDATE {table} SET {placeholders}'
 
-        for key, val in query_dict.items():
-            query_placeholders.append(f"{key}=?")
-            query_vals.append(val)
+        placeholders, values = [], []
 
         for key, val in kwargs.items():
             placeholders.append(f"{key}=?")
             values.append(val)
 
-        sql = update_sql.format(table=table_name, placeholders=', '.join(placeholders),
-                                query=' AND '.join(query_placeholders))
-        values = values + query_vals
+        sql = update_sql.format(table=table_name, placeholders=', '.join(placeholders))
+        values = values
+
+        if self.__interim_values__ and self.__sql_dict__:
+            self.__interim_sql__ = sql
+            sql, _values = self._render_select_where_sql_stmt(*self.__sql_dict__)
+            values += _values
+
         return sql, values
 
     def _render_delete_sql_stmt(self, table_name, **kwargs):
@@ -224,27 +257,36 @@ class SQLiteDbMapper(BaseSQLDbMapper):
         sql = delete_sql.format(table=table_name, query=' AND '.join(query))
         return sql, values
 
-    def _render_select_sql_stmt(self, table, fields):
-        select_sql = 'SELECT {fields} FROM {table};'
-        sql = select_sql.format(table=table, fields=', '.join(fields))
-        return sql
+    def _render_select_sql_stmt(self, table, fields, distinct=False):
+        select_sql = 'SELECT {distinct} {fields} FROM {table}'
+        sql = select_sql.format(
+            table=table,
+            fields=', '.join(fields),
+            distinct=self.DISTINCT if distinct else ''
+        )
+        return self._render_sql_stmt(sql)
 
-    def _render_select_where_sql_stmt(self, table_name, fields, *args):
-        select_sql = 'SELECT {fields} FROM {table} WHERE {query};'
+    def _render_select_where_sql_stmt(self, *args):
+        where_sql = ' WHERE {query}'
+        self.__sql_dict__ = args
 
         query, operators, values = [], [], []
         for d in args:
             field = d['field']
-            operator = d['operator']
+            operator = d['operand']
             value = d['value']
-            query.append(f"{field}{operator}?")
+            query.append(f"{field} {operator} ?")
             values.append(value)
 
-        sql = select_sql.format(fields=', '.join(fields), table=table_name, query=' AND '.join(query))
-        return sql, values
+        return self._render_sql_stmt(self.__interim_sql__, where_sql.format(query=' AND '.join(query)), values=values)
+
+    def _render_limit_sql_stmt(self, value):
+        limit_sql = ' {limit} {value} '.format(limit=self.LIMIT, value=value)
+        return self._render_sql_stmt(self.__interim_sql__, limit_sql, values=self.__interim_values__)
+
+    ####################################################
 
 
-####################################################
 #       DATABASE
 ###################################################
 class BaseDatabase:
@@ -256,7 +298,7 @@ class BaseDatabase:
 
     @property
     def DB_MAPPER(self):
-        return self._db_mapper
+        return self._mapper
 
 
 class BaseSQLDatabase(BaseDatabase):
@@ -286,10 +328,10 @@ class SQLiteDatabase(BaseSQLDatabase):
             check_same_thread=check_same_thread,
             **kwargs
         )
-        self._db_mapper = SQLiteDbMapper()
+        self._mapper = SQLiteDbMapper()
 
     def execute(self, *args, **kwargs):
-        self._db.execute(*args, **kwargs)
+        return self._db.execute(*args, **kwargs)
 
     def exec_lastrowid(self, *args, **kwargs):
         cursor = self._db.execute(*args, **kwargs)
@@ -314,8 +356,8 @@ class Field:
     """Base class for all field types"""
 
     def __init__(self, type_, max_length=None, null=True, unique=False, default=None):
-        self._db_mapper = _config.DBMAPPER
-        self._type = getattr(self._db_mapper, type_)
+        self._mapper = _config.DBMAPPER
+        self._type = getattr(self._mapper, type_)
         self._max_length = max_length
         self._null = null
         self._unique = unique
@@ -324,7 +366,7 @@ class Field:
 
     @property
     def sql(self):
-        _sql = self._db_mapper._render_field_sql_stmt(
+        _sql = self._mapper._render_field_sql_stmt(
             self._type,
             max_length=self._max_length,
             null=self._null,
@@ -337,30 +379,29 @@ class Field:
     def _name(self):
         return self.__class__.__name__
 
-    def _render_compare_dict(self, operator, other):
-        return {
-            'field': self._field_name,
-            'operator': operator,
-            'value': other
-        }
+    def _render_sql_dict(self, operand, other):
+        return render_sql_dict(self._field_name, operand, other)
 
     def __gt__(self, other):
-        return self._render_compare_dict(self._db_mapper.GT, other)
+        return self._render_sql_dict(self._mapper.GT, other)
 
     def __lt__(self, other):
-        return self._render_compare_dict(self._db_mapper.LT, other)
+        return self._render_sql_dict(self._mapper.LT, other)
 
     def __eq__(self, other):
-        return self._render_compare_dict(self._db_mapper.EQ, other)
+        return self._render_sql_dict(self._mapper.EQ, other)
 
     def __le__(self, other):
-        return self._render_compare_dict(self._db_mapper.LTE, other)
+        return self._render_sql_dict(self._mapper.LTE, other)
 
     def __ge__(self, other):
-        return self._render_compare_dict(self._db_mapper.GTE, other)
+        return self._render_sql_dict(self._mapper.GTE, other)
 
     def __ne__(self, other):
-        return self._render_compare_dict(self._db_mapper.NE, other)
+        return self._render_sql_dict(self._mapper.NE, other)
+
+    def like(self, pattern):
+        return self._render_sql_dict(self._mapper.LIKE, pattern)
 
 
 class PrimaryKeyField(Field):
@@ -421,7 +462,7 @@ class ForeignKeyField(Field):
         self.__on_update = on_update
 
     def _foreign_key_sql(self, field_name):
-        sql = self._db_mapper._render_foreign_key_sql_stmt(
+        sql = self._mapper._render_foreign_key_sql_stmt(
             model=self.__model.__table_name__,
             field_name=field_name,
             on_field=self.__on_field,
@@ -440,7 +481,7 @@ class BaseQuery:
     def __init__(self, data):
         self._data = data
         self._db = _config.DATABASE
-        self._db_mapper = _config.DBMAPPER
+        self._mapper = _config.DBMAPPER
 
     @property
     def get_data(self):
@@ -456,7 +497,7 @@ class BaseQuery:
 class QuerySet(BaseQuery):
 
     def update(self, **kwargs):
-        sql, values = self._db_mapper._render_update_sql_stmt(self._table, self._pk, self._pk_field, **kwargs)
+        sql, values = self._mapper._render_update_sql_stmt(self._table, self._pk, self._pk_field, **kwargs)
         self._db.execute(sql, values)
         self._db.commit()
 
@@ -478,10 +519,10 @@ class Query(BaseQuery):
         return self.__state
 
     @classmethod
-    def select(cls, table, fields):
+    def select(cls, table, fields, distinct=False):
         db = _config.DATABASE
-        db_mapper = _config.DBMAPPER
-        sql = db_mapper._render_select_sql_stmt(table, fields)
+        mapper = _config.DBMAPPER
+        sql, _ = mapper._render_select_sql_stmt(table, fields, distinct=distinct)
         try:
             data = db.fetchall(sql)
             klass = cls(data, table, fields)
@@ -498,20 +539,32 @@ class Query(BaseQuery):
         self.__state = state
 
     def where(self, *args):
-        if self._fields is None:
+        if self.__state != 'select':
             raise QueryError(f"{self._table}: select method must be called before where method!")
 
-        sql, values = self._db_mapper._render_select_where_sql_stmt(self._table, self._fields, *args)
+        if self.__state == 'where':
+            raise QueryError(f"{self._table}: where method called more than one!")
+
+        sql, values = self._mapper._render_select_where_sql_stmt(*args)
         data = self._db.fetchall(sql, values)
         klass = self._from_query(data, self._table, self._fields)
         klass.set_state('where')
         return klass
 
-    def bulk_update(self, **kwargs):
-        if self.__state != 'where':
-            raise QueryError(f"{self._table}: where method must be called before bulk_update method!")
+    def limit(self, value):
+        sql, values = self._mapper._render_limit_sql_stmt(value)
 
-        sql, values = self._db_mapper._render_bulk_update_sql_stmt(self._table, self._kwds, **kwargs)
+        if values:
+            data = self._db.fetchall(sql, values)
+        else:
+            data = self._db.fetchall(sql)
+        return self._from_query(data, self._table)
+
+    def bulk_update(self, **kwargs):
+        if self.__state not in ('select', 'where'):
+            raise QueryError(f"{self._table}: select or where method must be called before bulk_update method!")
+
+        sql, values = self._mapper._render_bulk_update_sql_stmt(self._table, **kwargs)
         self._db.execute(sql, values)
         self._db.commit()
 
@@ -530,7 +583,7 @@ class SQLModelManager(BaseDbManager):
         self._model = model
         self._mapping = model.__mappings__
         self._db = _config.DATABASE
-        self._db_mapper = _config.DBMAPPER
+        self._mapper = _config.DBMAPPER
 
     @property
     def table_name(self):
@@ -550,7 +603,7 @@ class SQLModelManager(BaseDbManager):
         return datas
 
     def _create_table(self, commit=True):
-        sql = self._db_mapper._render_create_table_sql_stmt(self.table_name, **self._mapping)
+        sql = self._mapper._render_create_table_sql_stmt(self.table_name, **self._mapping)
         self._db.execute(sql)
         if commit:
             self._db.commit()
@@ -563,7 +616,7 @@ class SQLModelManager(BaseDbManager):
 
     def insert(self, **kwargs):
         try:
-            sql, values = self._db_mapper._render_insert_sql_stmt(self.table_name, **kwargs)
+            sql, values = self._mapper._render_insert_sql_stmt(self.table_name, **kwargs)
             lastrowid = self._db.exec_lastrowid(sql, values)
             self._db.commit()
         except sq.OperationalError as e:
@@ -574,20 +627,25 @@ class SQLModelManager(BaseDbManager):
         for d in data:
             if not isinstance(d, dict):
                 raise InsertError(f"bulk_insert accepts only dictionary values!")
-            sql, values = self._db_mapper._render_insert_sql_stmt(self.table_name, **d)
+            sql, values = self._mapper._render_insert_sql_stmt(self.table_name, **d)
             self._db.execute(sql, values)
         self._db.commit()
 
     def delete(self, **kwargs):
-        sql, values = self._db_mapper._render_delete_sql_stmt(self.table_name, **kwargs)
+        sql, values = self._mapper._render_delete_sql_stmt(self.table_name, **kwargs)
         self._db.execute(sql, values)
         self._db.commit()
 
     def get(self, **kwargs):
-        sql, values = self._db_mapper._render_select_where_sql_stmt(self.table_name, ['*'], **kwargs)
+        args = []
+        for key, val in kwargs.items():
+            sql_dict = render_sql_dict(key, '=', val)
+            args.append(sql_dict)
+
+        qs = self.select(['*']).where(*args)
 
         try:
-            query_set = self._db.fetchone(sql, values)
+            query_set = qs.get_data[0]
             data = dict(zip(self._table_fields, query_set))
             pk_field = self._get_primary_key_field()
             data['_table'] = self.table_name
@@ -600,8 +658,11 @@ class SQLModelManager(BaseDbManager):
 
         return query_class
 
-    def select(self, fields):
-        return Query.select(self.table_name, fields)
+    def select(self, fields, distinct=False):
+        return Query.select(self.table_name, fields, distinct=distinct)
+
+    def raw(self, *args, **kwargs):
+        return self._db.execute(*args, **kwargs)
 
 
 class SQLModelBaseMetaClass(type):
