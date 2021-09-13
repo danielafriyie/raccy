@@ -14,9 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 import logging
-import os
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class _Logger:
@@ -28,7 +25,7 @@ class _Logger:
     def __init__(self, name: str = None, fmt: str = None, filename: str = None):
         self.name = name if name else __name__
         self.fmt = fmt if fmt else '%(asctime)s:%(levelname)s:%(message)s'
-        self.filename = filename if filename else os.path.join(BASE_DIR, 'scrawler.log')
+        self.filename = filename if filename else 'raccy.log'
 
     def _create_logger(self):
         _logger = logging.getLogger(self.name)
@@ -50,7 +47,7 @@ class _Logger:
 
     def _log_file_manager(self):
         """
-        check if the log file is more thn 10mb then it deletes it
+        check if the log file size is more than 10mb then deletes it
         """
         raise NotImplementedError(f'{self.__class__.__name__}._log_file_manager() method is not implemented!')
 
