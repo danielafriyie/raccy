@@ -32,12 +32,29 @@ Scheduler: Union[ItemUrlScheduler, BaseScheduler, Queue] = ...
 Driver: Union[Chrome, Firefox, Safari, Ie, Edge, Opera] = ...
 
 
-class SingleInstanceWorker(Thread, metaclass=SingletonMeta):
+##################################
+#       MIXINS
+#################################
+class CrawlerMixin:
+
+    def close_driver(self):
+        close_driver(self.driver, self.log)
+
+
+###############################
+#       WORKERS
+###############################
+class BaseWorker(Thread):
+    """
+    Base class for all workers
+    """
     log = logger()
 
 
-class BaseCrawlerWorker(Thread):
-    log = logger()
+class BaseCrawlerWorker(BaseWorker, CrawlerMixin):
+    """
+    Base class for all crawler workers
+    """
 
     def __init__(self, driver: Driver, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -45,6 +62,10 @@ class BaseCrawlerWorker(Thread):
 
     def run(self):
         self.job()
+
+
+class SingleInstanceWorker(BaseCrawlerWorker, metaclass=SingletonMeta):
+    pass
 
 
 class UrlDownloaderWorker(SingleInstanceWorker):
@@ -55,9 +76,8 @@ class UrlDownloaderWorker(SingleInstanceWorker):
     scheduler: Scheduler = ItemUrlScheduler()
     mutex = Lock()
 
-    def __init__(self, driver: Driver, *args, **kwargs):
-        Thread.__init__(self, *args, **kwargs)
-        self.driver = driver
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         if self.start_url is None:
             raise CrawlerException(f"{self.__class__.__name__}: start_url is not defined")
@@ -71,7 +91,7 @@ class UrlDownloaderWorker(SingleInstanceWorker):
             self.job()
         except WebDriverException as e:
             self.log.exception(e)
-        close_driver(self.driver, self.log)
+        self.close_driver()
 
 
 class CrawlerWorker(BaseCrawlerWorker):
@@ -91,7 +111,7 @@ class CrawlerWorker(BaseCrawlerWorker):
             except Empty:
                 self.log.info('Empty scheduler, closing.................')
                 break
-        close_driver(self.driver, self.log)
+        self.close_driver()
 
     def parse(self, url: str) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.parse() method is not implemented")
