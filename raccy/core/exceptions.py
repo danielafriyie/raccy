@@ -37,6 +37,10 @@ class QueryError(TypeError):
     pass
 
 
+class DatabaseException(TypeError):
+    pass
+
+
 ########################################
 #       CRAWLER EXCEPTIONS
 #######################################

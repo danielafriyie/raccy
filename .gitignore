@@ -35,3 +35,6 @@ facebook_invites.py
 raccy.egg-info
 ~$todos.xlsx
 chicken.py
+config.json
+migrations.json
+migrations

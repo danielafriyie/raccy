@@ -14,9 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 import sqlite3 as sq
+import pathlib
+import os
+import json
 
 from raccy.core.meta import SingletonMeta
-from raccy.core.exceptions import ModelDoesNotExist, InsertError, QueryError, ImproperlyConfigured
+from raccy.core.exceptions import (
+    ModelDoesNotExist, InsertError, QueryError, ImproperlyConfigured, DatabaseException
+)
+from raccy.utils.utils import check_path_exists
+from raccy.logger.logger import logger as _logger
+
+_log = _logger()
 
 
 ####################################################
@@ -29,6 +38,15 @@ def render_sql_dict(field, operand, value):
         'value': value
     }
     return sql_dict
+
+
+def table_exists(table):
+    """
+    Check if a table exists in the database
+    """
+    db = _config.DATABASE
+    tables = db.tables()
+    return table in tables
 
 
 #################################################
@@ -53,6 +71,61 @@ class Config(metaclass=SingletonMeta):
 
 
 _config = Config()
+
+
+#####################################################
+#       MIGRATIONS
+####################################################
+class Migration:
+    root_path = pathlib.Path('.').absolute()
+    migrations_dir = os.path.join(root_path, 'migrations')
+    migrations_path = os.path.join(migrations_dir, 'migrations.json')
+
+    def __init__(self, table, fields):
+        self._table = table
+        self._fields = fields
+        self._migrations = self.get_migrations()
+        self.mk_migrations_dir()
+
+    def operations(self):
+        add_fields = []
+        del_fields = []
+        existing_fields = self.get_fields()
+
+        if existing_fields is not None:
+            # Add fields to add to the table
+            for key, val in self._fields.items():
+                if key not in existing_fields:
+                    add_fields.append((key, val))
+
+            # add fields to delete from the table
+            for key, val in existing_fields.items():
+                if key not in self._fields:
+                    del_fields.append((key, val))
+        return add_fields, del_fields
+
+    def get_fields(self):
+        try:
+            return self._migrations[self._table]
+        except KeyError:
+            return None
+
+    def mk_migrations_dir(self):
+        if not check_path_exists(self.migrations_dir):
+            os.mkdir(self.migrations_dir)
+
+    def create_migrations(self, table, fields):
+        migrations = self.get_migrations()
+        migrations[table] = fields
+        with open(self.migrations_path, 'w') as file:
+            json.dump(migrations, file)
+
+    def get_migrations(self):
+        if not check_path_exists(self.migrations_path, isfile=True):
+            return {}
+        with open(self.migrations_path) as file:
+            migrations = json.load(file)
+        return migrations
 
 
 ####################################################
@@ -183,24 +256,59 @@ class SQLiteDbMapper(BaseSQLDbMapper):
     def _render_create_table_sql_stmt(self, table_name, **kwargs):
         fields = []
         foreign_key_sql = []
+        migration_fields = {}
+        migration = Migration(table_name, kwargs)
+        add_fields, del_fields = migration.operations()
+        if not table_exists(table_name):
+            for name, field in kwargs.items():
+                if isinstance(field, ForeignKeyField):
+                    foreign_key_sql.append(field._foreign_key_sql(name))
+                fields.append(f"{name} {field.sql}")
+                migration_fields[name] = field.type_string
 
-        for name, field in kwargs.items():
-            if isinstance(field, ForeignKeyField):
-                foreign_key_sql.append(field._foreign_key_sql(name))
-            fields.append(f"{name} {field.sql}")
+            fields = ', '.join(fields)
+            if foreign_key_sql:
+                fields = fields + ','
+            foreign_key_sql = ', '.join(foreign_key_sql) if foreign_key_sql else ''
 
-        fields = ', '.join(fields)
-        if foreign_key_sql:
-            fields = fields + ','
-        foreign_key_sql = ', '.join(foreign_key_sql) if foreign_key_sql else ''
+            sql = f"""
+                    PRAGMA foreign_keys = ON;
 
-        sql = f"""
-                CREATE TABLE IF NOT EXISTS {table_name} (
-                    {fields} 
-                    {foreign_key_sql}
-                );
-            """
-        return sql
+                    CREATE TABLE IF NOT EXISTS {table_name} (
+                        {fields} 
+                        {foreign_key_sql}
+                    );
+                """
+            migration.create_migrations(table_name, migration_fields)
+            return sql
+
+        if del_fields:
+            raise DatabaseException(
+                f"{table_name}: sqlite database does not support deleting field after table is created."
+            )
+
+        if add_fields:
+            for name, field in add_fields:
+                if isinstance(field, ForeignKeyField):
+                    raise DatabaseException(
+                        f"{table_name}: sqlite database does not support adding foreign key"
+                        f" field after table is created."
+                    )
+                if isinstance(field, PrimaryKeyField):
+                    raise DatabaseException(f"{table_name}: cannot add primary key field after table is created.")
+                fields.append(f"{name} {field.sql}")
+                migration_fields[name] = field.type_string
+
+            sql = ""
+            for f in fields:
+                sql += f"""
+                        ALTER TABLE {table_name}
+                        ADD COLUMN {f};
+                    """
+            existing_fields = migration._migrations[table_name]
+            existing_fields.update(migration_fields)
+            migration.create_migrations(table_name, existing_fields)
+            return sql
 
     def _render_insert_sql_stmt(self, table_name, **kwargs):
         insert_sql = 'INSERT INTO {name} ({fields}) VALUES ({placeholders});'
@@ -284,9 +392,8 @@ class SQLiteDbMapper(BaseSQLDbMapper):
         limit_sql = ' {limit} {value} '.format(limit=self.LIMIT, value=value)
         return self._render_sql_stmt(self.__interim_sql__, limit_sql, values=self.__interim_values__)
 
-    ####################################################
 
-
+###################################################
 #       DATABASE
 ###################################################
 class BaseDatabase:
@@ -310,6 +417,9 @@ class BaseSQLDatabase(BaseDatabase):
     def exec_lastrowid(self, *args, **kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}: exec_lastrowid is not implemented")
 
+    def executescript(self, *args, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}: executescript is not implemented")
+
     def commit(self):
         raise NotImplementedError(f"{self.__class__.__name__}: commit is not implemented")
 
@@ -318,6 +428,9 @@ class BaseSQLDatabase(BaseDatabase):
 
     def fetchall(self, *args, **kwargs):
         raise NotImplementedError(f"{self.__class__.__name__}: fetchall is not implemented")
+
+    def tables(self) -> list:
+        raise NotImplementedError(f"{self.__class__.__name__}: tables is not implemented")
 
 
 class SQLiteDatabase(BaseSQLDatabase):
@@ -337,6 +450,9 @@ class SQLiteDatabase(BaseSQLDatabase):
         cursor = self._db.execute(*args, **kwargs)
         return cursor.lastrowid
 
+    def executescript(self, *args, **kwargs):
+        return self._db.executescript(*args, **kwargs)
+
     def commit(self):
         self._db.commit()
 
@@ -348,6 +464,12 @@ class SQLiteDatabase(BaseSQLDatabase):
         qs = self._db.execute(*args, **kwargs)
         return qs.fetchall()
 
+    def tables(self):
+        sql = "SELECT name FROM sqlite_master WHERE type='table';"
+        qs = self.fetchall(sql)
+        tables = [x[0] for x in qs]
+        return tables
+
 
 #####################################################
 #       MODEL FIELDS
@@ -357,6 +479,7 @@ class Field:
 
     def __init__(self, type_, max_length=None, null=True, unique=False, default=None):
         self._mapper = _config.DBMAPPER
+        self.type_string = type_
         self._type = getattr(self._mapper, type_)
         self._max_length = max_length
         self._null = null
@@ -604,9 +727,10 @@ class SQLModelManager(BaseDbManager):
 
     def _create_table(self, commit=True):
         sql = self._mapper._render_create_table_sql_stmt(self.table_name, **self._mapping)
-        self._db.execute(sql)
-        if commit:
-            self._db.commit()
+        if sql is not None:
+            self._db.executescript(sql)
+            if commit:
+                self._db.commit()
 
     def _get_primary_key_field(self):
         return self._model.__pk__
@@ -649,7 +773,7 @@ class SQLModelManager(BaseDbManager):
             data = dict(zip(self._table_fields, query_set))
             pk_field = self._get_primary_key_field()
             data['_table'] = self.table_name
-            data['_pk'] = data[pk_field]
+            data['pk'] = data[pk_field]
             data['id'] = data[pk_field]
             data['_pk_field'] = pk_field
             query_class = QuerySet(data)
@@ -722,8 +846,8 @@ class SQLModelBaseMetaClass(type):
         # Checks if model has PrimaryKeyField
         # if False, then it will automatically create one
         if has_primary_key is False and _meta.abstract is False:
-            mappings['_pk'] = PrimaryKeyField()
-            primary_key_field = '_pk'
+            mappings['pk'] = PrimaryKeyField()
+            primary_key_field = 'pk'
 
         # Save mapping between attribute and columns and table name
         attr['_meta'] = _meta
