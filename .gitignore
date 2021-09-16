@@ -38,3 +38,4 @@ chicken.py
 config.json
 migrations.json
 migrations
+._config.json
