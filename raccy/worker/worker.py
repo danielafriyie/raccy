@@ -24,7 +24,7 @@ from selenium.common.exceptions import WebDriverException
 
 from raccy.core.meta import SingletonMeta
 from raccy.scheduler.scheduler import DatabaseScheduler, ItemUrlScheduler, BaseScheduler
-from raccy.utils.driver import close_driver
+from raccy.utils.driver import close_driver, next_btn_handler
 from raccy.logger.logger import logger
 from raccy.core.exceptions import CrawlerException
 
@@ -64,11 +64,11 @@ class BaseCrawlerWorker(BaseWorker, CrawlerMixin):
         self.job()
 
 
-class SingleInstanceWorker(BaseCrawlerWorker, metaclass=SingletonMeta):
+class SingleInstanceWorker(BaseWorker, metaclass=SingletonMeta):
     pass
 
 
-class UrlDownloaderWorker(SingleInstanceWorker):
+class UrlDownloaderWorker(SingleInstanceWorker, CrawlerMixin):
     """
     Resonsible for downloading item(s) to be scraped urls and enqueue(s) them in ItemUrlScheduler
     """
@@ -76,11 +76,15 @@ class UrlDownloaderWorker(SingleInstanceWorker):
     scheduler: Scheduler = ItemUrlScheduler()
     mutex = Lock()
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, driver: Driver, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.driver = driver
 
         if self.start_url is None:
             raise CrawlerException(f"{self.__class__.__name__}: start_url is not defined")
+
+    def follow(self, xpath):
+        pass
 
     def job(self):
         raise NotImplementedError(f"{self.__class__.__name__}.job() method is not implemented")
@@ -91,7 +95,8 @@ class UrlDownloaderWorker(SingleInstanceWorker):
             self.job()
         except WebDriverException as e:
             self.log.exception(e)
-        self.close_driver()
+        finally:
+            self.close_driver()
 
 
 class CrawlerWorker(BaseCrawlerWorker):
@@ -103,18 +108,20 @@ class CrawlerWorker(BaseCrawlerWorker):
     db_scheduler: Scheduler = DatabaseScheduler()
 
     def job(self):
-        while True:
-            try:
-                url = self.scheduler.get(timeout=self.url_wait_timeout)
-                self.parse(url)
-                self.scheduler.task_done()
-            except Empty:
-                self.log.info('Empty scheduler, closing.................')
-                break
-        self.close_driver()
+        try:
+            url = self.scheduler.get(timeout=self.url_wait_timeout)
+            self.parse(url)
+            self.scheduler.task_done()
+            return self.job()
+        except Empty:
+            self.log.info('Empty scheduler, closing.................')
 
     def parse(self, url: str) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.parse() method is not implemented")
+
+    def run(self):
+        self.job()
+        self.close_driver()
 
 
 class DatabaseWorker(SingleInstanceWorker):
@@ -129,14 +136,13 @@ class DatabaseWorker(SingleInstanceWorker):
         raise NotImplementedError(f"{self.__class__.__name__}.save() method is not implemented!")
 
     def job(self):
-        while True:
-            try:
-                data = self.db_scheduler.get(timeout=self.wait_timeout)
-                self.save(data)
-                self.db_scheduler.task_done()
-            except Empty:
-                self.log.info('Empty scheduler, closing.................')
-                return
+        try:
+            data = self.db_scheduler.get(timeout=self.wait_timeout)
+            self.save(data)
+            self.db_scheduler.task_done()
+            return self.job()
+        except Empty:
+            self.log.info('Empty scheduler, closing.................')
 
     def run(self):
         self.job()
