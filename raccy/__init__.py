@@ -17,7 +17,7 @@ from .scheduler.scheduler import ItemUrlScheduler, DatabaseScheduler
 from .worker.worker import UrlDownloaderWorker, CrawlerWorker, DatabaseWorker, BaseCrawlerWorker
 from .orm import orm as model
 
-__version__ = '1.1.2'
+__version__ = '1.2.3'
 
 __all__ = [
     '__version__',
