@@ -50,6 +50,21 @@ class BaseWorker(Thread):
     """
     log = logger()
 
+    def pre_job(self):
+        """
+        Runs before job method is called
+        """
+
+    def post_job(self):
+        """
+        Runs after job method is called
+        """
+
+    def run(self):
+        self.pre_job()
+        self.job()
+        self.post_job()
+
 
 class BaseCrawlerWorker(BaseWorker, CrawlerMixin):
     """
@@ -59,9 +74,6 @@ class BaseCrawlerWorker(BaseWorker, CrawlerMixin):
     def __init__(self, driver: Driver, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.driver = driver
-
-    def run(self):
-        self.job()
 
 
 class SingleInstanceWorker(BaseWorker, metaclass=SingletonMeta):
@@ -75,6 +87,8 @@ class UrlDownloaderWorker(SingleInstanceWorker, CrawlerMixin):
     start_url: str = None
     scheduler: Scheduler = ItemUrlScheduler()
     mutex = Lock()
+    urls_scraped = 0
+    max_url_download = -1
 
     def __init__(self, driver: Driver, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -83,8 +97,25 @@ class UrlDownloaderWorker(SingleInstanceWorker, CrawlerMixin):
         if self.start_url is None:
             raise CrawlerException(f"{self.__class__.__name__}: start_url is not defined")
 
-    def follow(self, xpath):
-        pass
+    def follow(self, xpath=None, url=None, callback=None, *cbargs, **cbkwargs):
+        if self.max_url_download > 0:
+            if self.urls_scraped > self.max_url_download:
+                return
+
+        if xpath is not None and url is not None:
+            raise CrawlerException(
+                f"{self.__class__.__name__}: both xpath and url is defined in "
+                f"follow method, you have to define only one"
+            )
+        if xpath is not None:
+            next_btn_handler(self.driver, next_btn=xpath)
+        if url is not None:
+            self.driver.get(url)
+
+        with self.mutex:
+            self.urls_scraped += 1
+
+        return callback(*cbargs, **cbkwargs)
 
     def job(self):
         raise NotImplementedError(f"{self.__class__.__name__}.job() method is not implemented")
@@ -92,7 +123,9 @@ class UrlDownloaderWorker(SingleInstanceWorker, CrawlerMixin):
     def run(self):
         try:
             self.driver.get(self.start_url)
+            self.pre_job()
             self.job()
+            self.post_job()
         except WebDriverException as e:
             self.log.exception(e)
         finally:
@@ -114,13 +147,15 @@ class CrawlerWorker(BaseCrawlerWorker):
             self.scheduler.task_done()
             return self.job()
         except Empty:
-            self.log.info('Empty scheduler, closing.................')
+            self.log.info(f'{self.__class__.__name__}: Empty scheduler, closing.................')
 
     def parse(self, url: str) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.parse() method is not implemented")
 
     def run(self):
+        self.pre_job()
         self.job()
+        self.post_job()
         self.close_driver()
 
 
@@ -142,7 +177,4 @@ class DatabaseWorker(SingleInstanceWorker):
             self.db_scheduler.task_done()
             return self.job()
         except Empty:
-            self.log.info('Empty scheduler, closing.................')
-
-    def run(self):
-        self.job()
+            self.log.info(f'{self.__class__.__name__}: Empty scheduler, closing.................')
