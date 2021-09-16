@@ -1,7 +1,6 @@
 from raccy import (
     model, UrlDownloaderWorker, CrawlerWorker, DatabaseWorker
 )
-from raccy.utils.driver import next_btn_handler, close_driver
 from selenium import webdriver
 from shutil import which
 
@@ -14,27 +13,15 @@ class Quote(model.Model):
     quote = model.TextField()
     author = model.CharField(max_length=100)
 
-    class Meta:
-        db_name = 'quote_table'
-
 
 class UrlDownloader(UrlDownloaderWorker):
     start_url = 'https://quotes.toscrape.com/page/1/'
-    urls_scraped = 0
+    max_url_download = 10
 
     def job(self):
-        while True:
-            url = self.driver.current_url
-            self.scheduler.put(url)
-            next_btn_handler(self.driver, "//a[contains(text(), 'Next')]")
-
-            if self.urls_scraped > 10:
-                self.log.info('Closing................')
-                break
-
-            with self.mutex:
-                self.urls_scraped += 1
-        close_driver(self.driver, self.log)
+        url = self.driver.current_url
+        self.scheduler.put(url)
+        self.follow(xpath="//a[contains(text(), 'Next')]", callback=self.job)
 
 
 class Crawler(CrawlerWorker):

@@ -19,9 +19,8 @@ class FacebookInvites(BaseCrawlerWorker):
     username = "your facebook username"
     password = "your facebook password"
 
-    def job(self):
+    def pre_job(self):
         self.driver.get(self.fb_home)
-
         # Login
         self.driver.find_element_by_xpath("//input[@id='email']").send_keys(self.username)
         self.driver.find_element_by_xpath("//input[@id='pass']").send_keys(self.password)
@@ -32,7 +31,7 @@ class FacebookInvites(BaseCrawlerWorker):
         # self.driver.find_element_by_xpath("//input[@id='approvals_code']").send_keys(code)
         # self.driver.find_element_by_xpath("//button[contains(text(), 'Continue')]").click()
 
-        random_delay(1, 5)
+    def job(self):
         self.driver.find_element_by_xpath("//button[contains(text(), 'Continue')]")
         random_delay(1, 5)
         self.driver.get(self.page_url)
@@ -43,7 +42,8 @@ class FacebookInvites(BaseCrawlerWorker):
         while True:
             if people_invited >= number_of_people_to_invite:
                 break
-            self.driver.find_element_by_xpath("//span[contains(text(), 'See All Friends')]/parent::node()/parent::node()/parent::node()/parent::node()/parent::node()").click()
+            self.driver.find_element_by_xpath(
+                "//span[contains(text(), 'See All Friends')]/parent::node()/parent::node()/parent::node()/parent::node()/parent::node()").click()
             driver_wait(
                 self.driver,
                 xpath="//span[contains(text(), 'Send Invites')]/parent::node()/parent::node()/parent::node()/parent::node()/parent::node()",
@@ -52,11 +52,13 @@ class FacebookInvites(BaseCrawlerWorker):
             )
 
             for i in range(10):
-                self.driver.find_element_by_xpath(f"(//div[@class='']/i[@data-visualcompletion='css-img'])[{i + 4}]").click()
+                self.driver.find_element_by_xpath(
+                    f"(//div[@class='']/i[@data-visualcompletion='css-img'])[{i + 4}]").click()
                 people_invited += 1
 
             self.driver.find_element_by_xpath("//input[@name='checkbox']").click()
-            self.driver.find_element_by_xpath("//span[contains(text(), 'Send Invites')]/parent::node()/parent::node()/parent::node()/parent::node()/parent::node()").click()
+            self.driver.find_element_by_xpath(
+                "//span[contains(text(), 'Send Invites')]/parent::node()/parent::node()/parent::node()/parent::node()/parent::node()").click()
 
         self.log.info("Job done, closing......................")
         close_driver(self.driver)
