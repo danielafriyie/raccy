@@ -1,7 +1,7 @@
 from selenium import webdriver
 from shutil import which
 from raccy import BaseCrawlerWorker
-from raccy.utils.driver import close_driver, driver_wait
+from raccy.utils.driver import driver_wait
 from raccy.utils.utils import random_delay
 
 
@@ -61,7 +61,7 @@ class FacebookInvites(BaseCrawlerWorker):
                 "//span[contains(text(), 'Send Invites')]/parent::node()/parent::node()/parent::node()/parent::node()/parent::node()").click()
 
         self.log.info("Job done, closing......................")
-        close_driver(self.driver)
+        self.close_driver()
 
 
 if __name__ == '__main__':
