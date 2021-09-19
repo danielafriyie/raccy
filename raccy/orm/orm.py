@@ -620,7 +620,7 @@ class BaseQuery:
 class QuerySet(BaseQuery):
 
     def update(self, **kwargs):
-        sql, values = self._mapper._render_update_sql_stmt(self._table, self._pk, self._pk_field, **kwargs)
+        sql, values = self._mapper._render_update_sql_stmt(self._table, self.pk, self._pk_field, **kwargs)
         self._db.execute(sql, values)
         self._db.commit()
 
@@ -801,19 +801,19 @@ class SQLModelBaseMetaClass(type):
 
     def _get_meta_data(cls, attr):
         _abstract = False
-        _db_name = None
         _create_table = True
+        _table_name = None
 
         if 'Meta' in attr:
             _meta = attr['Meta']
             _abstract = getattr(_meta, 'abstract', _abstract)
-            _db_name = getattr(_meta, 'db_name', _db_name)
+            _table_name = getattr(_meta, 'table_name', _table_name)
             _create_table = getattr(_meta, 'create_table', _create_table)
             del attr['Meta']
 
         class _Meta:
             abstract = _abstract
-            db_name = _db_name
+            table_name = _table_name
             create_table = _create_table
 
         return _Meta
@@ -852,7 +852,7 @@ class SQLModelBaseMetaClass(type):
         # Save mapping between attribute and columns and table name
         attr['_meta'] = _meta
         attr['__mappings__'] = mappings
-        attr['__table_name__'] = _meta.db_name if _meta.db_name else name.lower()
+        attr['__table_name__'] = _meta.table_name if _meta.table_name else name.lower()
         attr['__pk__'] = primary_key_field
         new_class = type.__new__(mcs, name, base, attr)
 
@@ -863,7 +863,6 @@ class Model(metaclass=SQLModelBaseMetaClass):
     """Model class for SQL Databases"""
 
     class Meta:
-        db_name = None
         abstract = True
 
     def __init_subclass__(cls, **kwargs):
