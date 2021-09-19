@@ -12,7 +12,7 @@ data mining. Currently the ORM feature supports only SQLite Database.
 ### ARCHITECTURE OVERVIEW
 * **UrlDownloaderWorker:** resonsible for downloading item(s) to be scraped urls and enqueue(s) them in ItemUrlScheduler
 
-* **ItemUrlScheduler:** receives item urls from UrlDownloaderWorker and enqueues the
+* **ItemUrlScheduler:** receives item urls from UrlDownloaderWorker and enqueues them
     for feeding them to CrawlerWorker
     
 * **CrawlerWorker:** fetches item web pages and scrapes or extract data from them and enqueues the data in DatabaseScheduler
