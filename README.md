@@ -3,8 +3,7 @@
 ### OVERVIEW
 Raccy is a multithreaded web scraping library based on selenium with 
 built in ORM feature. It can be used for web automation, web scraping, and
-data mining. Currently the ORM feature supports only SQLite Database. Some of it's 
-features is inspired by Django ORM and Scrapy.
+data mining. Currently the ORM feature supports only SQLite Database. 
 
 ### REQUIREMENTS
 - Python 3.7+ 
