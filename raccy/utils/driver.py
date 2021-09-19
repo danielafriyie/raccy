@@ -42,15 +42,14 @@ def window_scroll_to(driver: Driver, loc: int):
 
 
 def driver_wait(
-        driver: Driver, xpath: str, secs=5, method: str = None, action: Optional[str] = None
+        driver: Driver, xpath: str, secs=5, condition=None, action: Optional[str] = None
 ) -> None:
-    check_has_attr(EC, method)
     wait = WebDriverWait(driver=driver, timeout=secs)
-    condition = getattr(EC, method)
     until = wait.until(condition((By.XPATH, xpath)))
     if action:
         check_has_attr(until, action)
-        getattr(until, action)()
+        _action = getattr(until, action)
+        _action()
 
 
 def follow(

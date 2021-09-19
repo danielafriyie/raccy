@@ -1,7 +1,7 @@
 from selenium import webdriver
+from selenium.webdriver.support import expected_conditions as EC
 from shutil import which
 from raccy import BaseCrawlerWorker
-from raccy.utils.driver import driver_wait
 from raccy.utils.utils import random_delay
 
 
@@ -42,13 +42,12 @@ class FacebookInvites(BaseCrawlerWorker):
         while True:
             if people_invited >= number_of_people_to_invite:
                 break
-            self.driver.find_element_by_xpath(
-                "//span[contains(text(), 'See All Friends')]/parent::node()/parent::node()/parent::node()/parent::node()/parent::node()").click()
-            driver_wait(
-                self.driver,
+            self.driver.find_element_by_xpath( "//span[contains(text(), 'See All Friends')]/parent::node()/parent::node()/parent::node()/parent::node()/parent::node()").click()
+
+            self.wait(
                 xpath="//span[contains(text(), 'Send Invites')]/parent::node()/parent::node()/parent::node()/parent::node()/parent::node()",
                 secs=50,
-                method="element_to_be_clickable"
+                condition=EC.element_to_be_clickable
             )
 
             for i in range(10):

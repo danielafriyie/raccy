@@ -24,7 +24,7 @@ from selenium.common.exceptions import WebDriverException
 
 from raccy.core.meta import SingletonMeta
 from raccy.scheduler.scheduler import DatabaseScheduler, ItemUrlScheduler, BaseScheduler
-from raccy.utils.driver import close_driver, next_btn_handler
+from raccy.utils.driver import close_driver, next_btn_handler, driver_wait
 from raccy.logger.logger import logger
 from raccy.core.exceptions import CrawlerException
 
@@ -75,6 +75,15 @@ class BaseCrawlerWorker(BaseWorker, CrawlerMixin):
         super().__init__(*args, **kwargs)
         self.driver = driver
 
+    def wait(self, xpath, secs=5, condition=None, action=None):
+        driver_wait(
+            driver=self.driver,
+            xpath=xpath,
+            secs=secs,
+            condition=condition,
+            action=action
+        )
+
 
 class SingleInstanceWorker(BaseWorker, metaclass=SingletonMeta):
     pass
@@ -96,6 +105,15 @@ class UrlDownloaderWorker(SingleInstanceWorker, CrawlerMixin):
 
         if self.start_url is None:
             raise CrawlerException(f"{self.__class__.__name__}: start_url is not defined")
+
+    def wait(self, xpath, secs=5, condition=None, action=None):
+        driver_wait(
+            driver=self.driver,
+            xpath=xpath,
+            secs=secs,
+            condition=condition,
+            action=action
+        )
 
     def follow(self, xpath=None, url=None, callback=None, *cbargs, **cbkwargs):
         if self.max_url_download > 0:
@@ -165,7 +183,6 @@ class DatabaseWorker(SingleInstanceWorker):
     """
     wait_timeout: Optional[int] = 10
     db_scheduler: Scheduler = DatabaseScheduler()
-    log = logger()
 
     def save(self, data: dict) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.save() method is not implemented!")
