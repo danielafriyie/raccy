@@ -39,3 +39,4 @@ config.json
 migrations.json
 migrations
 ._config.json
+docs
