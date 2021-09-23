@@ -22,3 +22,4 @@ Contents:
    raccy/installation
    raccy/tutorial
    raccy/architecture
+   raccy/api_docs

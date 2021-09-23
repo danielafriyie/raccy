@@ -103,7 +103,7 @@ The models are designed is such a way that, the tables are created immediately
 you subclass the ``model.Model`` class without creating any object or instances or calling any create method.
 The tables will be created automatically when you run your code. The idea behind this is that, in web scraping,
 most of the time you'll be inserting data into a database. So instead of writing code to define your models and
-and also writing code to create them, you just define your models and start inserting data into them. Off course this feature
+and also writing code to create them, you just define your models and start inserting data into them. Off course this behaviour
 can be turned off. You can read more in the API Documentation.
 
 In our model defined above ``Quote``, there are just three fields:
@@ -121,7 +121,7 @@ As you can see, this class subclass the ``UrlDownloaderWorker`` class. This clas
 for downloading the urls of items, in this case quotes, that we will scrape. Let us take a look
 at the attributes and methods defined:
 
-    * *start_url:* this the initial url our ``UrlDownloader`` will request from.
+    * *start_url:* this is the initial url our ``UrlDownloader`` will request from.
 
     * *max_url_download:* this defines the maximum number of urls the ``UrlDownloader`` is supposed to donwload.
 
