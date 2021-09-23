@@ -4,7 +4,6 @@ import sys
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(BASE_DIR)
 
-from raccy import __version__
 import sphinx_rtd_theme
 
 project = 'Raccy'
@@ -12,8 +11,7 @@ copyright = '2021, Daniel Afriyie'
 author = 'Daniel Afriyie'
 
 # The full version, including alpha/beta/rc tags
-release = __version__
-
+release = '1.2.4'
 
 # -- General configuration ---------------------------------------------------
 
@@ -30,7 +28,6 @@ templates_path = ['_templates']
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
-
 
 # -- Options for HTML output -------------------------------------------------
 
