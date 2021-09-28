@@ -23,6 +23,7 @@ Scrawler.egg-info
 *.pyc
 *.pyi
 info.txt
+todos.txt
 projects.txt
 database.db
 test.db
