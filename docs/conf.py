@@ -5,13 +5,14 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(BASE_DIR)
 
 import sphinx_rtd_theme
+from raccy import __version__
 
 project = 'Raccy'
 copyright = '2021, Daniel Afriyie'
 author = 'Daniel Afriyie'
-
+version = __version__
 # The full version, including alpha/beta/rc tags
-release = '1.2.4'
+release = __version__
 
 # -- General configuration ---------------------------------------------------
 
