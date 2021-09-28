@@ -49,7 +49,7 @@ class CrawlerException(TypeError):
 
 
 #######################################
-#       SCHEDULER EXCEPTIONS
+#       QUEUE EXCEPTIONS
 ######################################
-class SchedulerError(TypeError):
+class QueueError(TypeError):
     pass
