@@ -14,6 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 import logging
+import pathlib
+import os
+
+from raccy.utils.utils import check_path_exists
 
 
 class _Logger:
@@ -25,7 +29,14 @@ class _Logger:
     def __init__(self, name: str = None, fmt: str = None, filename: str = None):
         self.name = name if name else __name__
         self.fmt = fmt if fmt else '%(asctime)s:%(levelname)s:%(message)s'
-        self.filename = filename if filename else 'logs/raccy.log'
+        self.filename = filename if filename else self._get_log_file()
+        self._root_path = pathlib.Path('.').absolute()
+        self._log_path = os.path.join(self._root_path, 'logs/raccy.log')
+
+    def _get_log_file(self):
+        if not check_path_exists(self._log_path, isfile=True):
+            os.mkdir(os.path.join(self._root_path, 'logs'))
+        return self._log_path
 
     def _create_logger(self):
         _logger = logging.getLogger(self.name)
