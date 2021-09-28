@@ -14,22 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 from threading import Thread, Lock
-from queue import Empty, Queue
-from typing import Union, Optional
+from queue import Empty
+from typing import Optional
 
-from selenium.webdriver import (
-    Chrome, Firefox, Safari, Ie, Edge, Opera
-)
+from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.common.exceptions import WebDriverException
 
 from raccy.core.meta import SingletonMeta
-from raccy.scheduler.scheduler import DatabaseScheduler, ItemUrlScheduler, BaseScheduler
+from raccy.core.queue_ import DatabaseQueue, BaseQueue, ItemUrlQueue
 from raccy.utils.driver import close_driver, next_btn_handler, driver_wait
 from raccy.logger.logger import logger
 from raccy.core.exceptions import CrawlerException
 
-Scheduler: Union[ItemUrlScheduler, BaseScheduler, Queue] = ...
-Driver: Union[Chrome, Firefox, Safari, Ie, Edge, Opera] = ...
+Queue_: BaseQueue = ...
+Driver: WebDriver = ...
 
 
 ##################################
@@ -60,6 +58,11 @@ class BaseWorker(Thread):
         Runs after job method is called
         """
 
+    def kill(self):
+        if self.is_alive():
+            self._is_stopped = False
+            self.post_job()
+
     def run(self):
         self.pre_job()
         self.job()
@@ -84,17 +87,16 @@ class BaseCrawlerWorker(BaseWorker, CrawlerMixin):
             action=action
         )
 
+    def post_job(self):
+        self.close_driver()
 
-class SingleInstanceWorker(BaseWorker, metaclass=SingletonMeta):
-    pass
 
-
-class UrlDownloaderWorker(SingleInstanceWorker, CrawlerMixin):
+class UrlDownloaderWorker(BaseCrawlerWorker, metaclass=SingletonMeta):
     """
-    Resonsible for downloading item(s) to be scraped urls and enqueue(s) them in ItemUrlScheduler
+    Resonsible for downloading item(s) to be scraped urls and enqueue(s) them in ItemUrlQueue
     """
     start_url: str = None
-    scheduler: Scheduler = ItemUrlScheduler()
+    url_queue: Queue_ = ItemUrlQueue()
     mutex = Lock()
     urls_scraped = 0
     max_url_download = -1
@@ -143,29 +145,28 @@ class UrlDownloaderWorker(SingleInstanceWorker, CrawlerMixin):
             self.driver.get(self.start_url)
             self.pre_job()
             self.job()
-            self.post_job()
         except WebDriverException as e:
             self.log.exception(e)
         finally:
-            self.close_driver()
+            self.post_job()
 
 
 class CrawlerWorker(BaseCrawlerWorker):
     """
-    Fetches item web pages and scrapes or extract data and enqueues the data in DatabaseScheduler
+    Fetches item web pages and scrapes or extract data and enqueues the data in DatabaseQueue
     """
     url_wait_timeout: Optional[int] = 10
-    scheduler: Scheduler = ItemUrlScheduler()
-    db_scheduler: Scheduler = DatabaseScheduler()
+    url_queue: Queue_ = ItemUrlQueue()
+    db_queue: Queue_ = DatabaseQueue()
 
     def job(self):
         try:
-            url = self.scheduler.get(timeout=self.url_wait_timeout)
+            url = self.url_queue.get(timeout=self.url_wait_timeout)
             self.parse(url)
-            self.scheduler.task_done()
+            self.url_queue.task_done()
             return self.job()
         except Empty:
-            self.log.info(f'{self.__class__.__name__}: Empty scheduler, closing.................')
+            pass
 
     def parse(self, url: str) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.parse() method is not implemented")
@@ -174,24 +175,23 @@ class CrawlerWorker(BaseCrawlerWorker):
         self.pre_job()
         self.job()
         self.post_job()
-        self.close_driver()
 
 
-class DatabaseWorker(SingleInstanceWorker):
+class DatabaseWorker(BaseWorker, metaclass=SingletonMeta):
     """
-    Receives scraped data from DatabaseScheduler and stores it in a persistent database
+    Receives scraped data from DatabaseQueue and stores it in a persistent database
     """
-    wait_timeout: Optional[int] = 10
-    db_scheduler: Scheduler = DatabaseScheduler()
+    data_wait_timeout: Optional[int] = 10
+    db_queue: Queue_ = DatabaseQueue()
 
     def save(self, data: dict) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.save() method is not implemented!")
 
     def job(self):
         try:
-            data = self.db_scheduler.get(timeout=self.wait_timeout)
+            data = self.db_queue.get(timeout=self.data_wait_timeout)
             self.save(data)
-            self.db_scheduler.task_done()
+            self.db_queue.task_done()
             return self.job()
         except Empty:
-            self.log.info(f'{self.__class__.__name__}: Empty scheduler, closing.................')
+            pass

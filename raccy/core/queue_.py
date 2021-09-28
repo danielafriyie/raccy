@@ -16,7 +16,7 @@ limitations under the License.
 from queue import Queue
 
 from raccy.core.meta import SingletonMeta
-from raccy.core.exceptions import SchedulerError
+from raccy.core.exceptions import QueueError
 
 
 class BaseQueue(metaclass=SingletonMeta):
@@ -61,7 +61,7 @@ class DatabaseQueue(BaseQueue):
 
     def put(self, item, *args, **kwargs):
         if not isinstance(item, dict):
-            raise SchedulerError(f"{self.__class__.__name__} accepts only dictionary values!")
+            raise QueueError(f"{self.__class__.__name__} accepts only dictionary values!")
         super().put(item, *args, **kwargs)
 
 
