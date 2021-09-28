@@ -19,7 +19,7 @@ Contents:
    :maxdepth: 2
    :glob:
 
-   raccy_/installation
-   raccy_/tutorial
-   raccy_/architecture
-   raccy_/api_docs
+   raccy/installation
+   raccy/tutorial
+   raccy/architecture
+   raccy/api_docs
