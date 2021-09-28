@@ -29,14 +29,14 @@ class _Logger:
     def __init__(self, name: str = None, fmt: str = None, filename: str = None):
         self.name = name if name else __name__
         self.fmt = fmt if fmt else '%(asctime)s:%(levelname)s:%(message)s'
-        self.filename = filename if filename else self._get_log_file()
         self._root_path = pathlib.Path('.').absolute()
-        self._log_path = os.path.join(self._root_path, 'logs/raccy.log')
+        self.filename = filename if filename else self._get_log_file()
 
     def _get_log_file(self):
-        if not check_path_exists(self._log_path, isfile=True):
+        log_path = os.path.join(self._root_path, 'logs/raccy.log')
+        if not check_path_exists(log_path, isfile=True):
             os.mkdir(os.path.join(self._root_path, 'logs'))
-        return self._log_path
+        return log_path
 
     def _create_logger(self):
         _logger = logging.getLogger(self.name)
