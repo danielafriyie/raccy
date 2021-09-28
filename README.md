@@ -8,20 +8,20 @@ Some of the features in this library is inspired by Django ORM and Scrapy.
 
 ### REQUIREMENTS
 - Python 3.7+ 
-- Works on Linux, Windows
+- Works on Linux, Windows, and Mac
 
 ### ARCHITECTURE OVERVIEW
-* **UrlDownloaderWorker:** resonsible for downloading item(s) to be scraped urls and enqueue(s) them in ItemUrlScheduler
+* **UrlDownloaderWorker:** resonsible for downloading item(s) to be scraped urls and enqueue(s) them in ItemUrlQueue
 
-* **ItemUrlScheduler:** receives item urls from UrlDownloaderWorker and enqueues them
+* **ItemUrlQueue:** receives item urls from UrlDownloaderWorker and enqueues them
     for feeding them to CrawlerWorker
     
-* **CrawlerWorker:** fetches item web pages and scrapes or extract data from them and enqueues the data in DatabaseScheduler
+* **CrawlerWorker:** fetches item web pages and scrapes or extract data from them and enqueues the data in DatabaseQueue
 
-* **DatabaseScheduler:** receives scraped item data from CrawlerWorker(s) and enques them
+* **DatabaseQueue:** receives scraped item data from CrawlerWorker(s) and enques them
     for feeding them to DatabaseWorker.
     
-* **DatabaseWorker:** receives scraped data from DatabaseScheduler and stores it in a persistent database.
+* **DatabaseWorker:** receives scraped data from DatabaseQueue and stores it in a persistent database.
 
 ### INSTALL
 
@@ -54,7 +54,7 @@ class UrlDownloader(UrlDownloaderWorker):
 
     def job(self):
         url = self.driver.current_url
-        self.scheduler.put(url)
+        self.url_queue.put(url)
         self.follow(xpath="//a[contains(text(), 'Next')]", callback=self.job)
 
 
@@ -72,7 +72,7 @@ class Crawler(CrawlerWorker):
                 'author': author
             }
             self.log.info(data)
-            self.db_scheduler.put(data)
+            self.db_queue.put(data)
 
 
 class Db(DatabaseWorker):
