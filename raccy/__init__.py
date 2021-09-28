@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-from .scheduler.scheduler import ItemUrlScheduler, DatabaseScheduler
+from .core.queue_ import ItemUrlQueue, DatabaseQueue
 from .worker.worker import UrlDownloaderWorker, CrawlerWorker, DatabaseWorker, BaseCrawlerWorker
 from .orm import orm as model
 
@@ -22,8 +22,8 @@ __version__ = '1.2.4'
 __all__ = [
     '__version__',
     'BaseCrawlerWorker',
-    'ItemUrlScheduler',
-    'DatabaseScheduler',
+    'ItemUrlQueue',
+    'DatabaseQueue',
     'UrlDownloaderWorker',
     'CrawlerWorker',
     'DatabaseWorker',

@@ -19,7 +19,7 @@ from raccy.core.meta import SingletonMeta
 from raccy.core.exceptions import SchedulerError
 
 
-class BaseScheduler(metaclass=SingletonMeta):
+class BaseQueue(metaclass=SingletonMeta):
     """
     Base Scheduler class: It restricts objects instances to only one instance.
     """
@@ -53,7 +53,7 @@ class BaseScheduler(metaclass=SingletonMeta):
         return self.__queue.task_done()
 
 
-class DatabaseScheduler(BaseScheduler):
+class DatabaseQueue(BaseQueue):
     """
     Receives scraped item data from CrawlerWorker and enques them
     for feeding them to DatabaseWorker.
@@ -65,7 +65,7 @@ class DatabaseScheduler(BaseScheduler):
         super().put(item, *args, **kwargs)
 
 
-class ItemUrlScheduler(BaseScheduler):
+class ItemUrlQueue(BaseQueue):
     """
     Receives item urls from UrlDownloaderWorker and enqueues them
     for feeding them to CrawlerWorker
