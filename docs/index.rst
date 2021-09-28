@@ -1,4 +1,4 @@
-_Overview
+Overview
 =================================
 
 Raccy is a multithreaded web scraping library based on selenium with
