@@ -12,8 +12,8 @@ The source code for this tutorial is uploaded to github. You can find it from th
 
 This is the code we will use. Save it in a file called ``quotes.py``::
 
-    from raccy import (
-        model, UrlDownloaderWorker, CrawlerWorker, DatabaseWorker
+   from raccy import (
+    model, UrlDownloaderWorker, CrawlerWorker, DatabaseWorker
     )
     from selenium import webdriver
     from shutil import which
@@ -34,7 +34,7 @@ This is the code we will use. Save it in a file called ``quotes.py``::
 
         def job(self):
             url = self.driver.current_url
-            self.scheduler.put(url)
+            self.url_queue.put(url)
             self.follow(xpath="//a[contains(text(), 'Next')]", callback=self.job)
 
 
@@ -52,7 +52,7 @@ This is the code we will use. Save it in a file called ``quotes.py``::
                     'author': author
                 }
                 self.log.info(data)
-                self.db_scheduler.put(data)
+                self.db_queue.put(data)
 
 
     class Db(DatabaseWorker):
@@ -125,16 +125,16 @@ at the attributes and methods defined:
 
     * *max_url_download:* this defines the maximum number of urls the ``UrlDownloader`` is supposed to donwload.
 
-    * *job:* this method is called to handle url extraction and also puts the extracted url into ``ItemUrlScheduler``
+    * *job:* this method is called to handle url extraction and also puts the extracted url into ``ItemUrlQueue``
 
 Crawler
 ********
 
 This class subclass ``CrawlerWorker`` class. This class is responsible for fetching web pages of the items we want to scrape.
-In our case quotes. The class receives url from ``ItemUrlScheduler``, fetches the web page and scrape or extract data from it.
+In our case quotes. The class receives url from ``ItemUrlQueue``, fetches the web page and scrape or extract data from it.
 Let us take a look at the methods defined:
 
-    * *parse:* this method is called to fetch web pages and scrape or extract data from them. The url parameter is the url received from ``ItemUrlScheduler``. The data is then put into ``DatabaseScheduler``.
+    * *parse:* this method is called to fetch web pages and scrape or extract data from them. The url parameter is the url received from ``ItemUrlQueue``. The data is then put into ``DatabaseQueue``.
 
 Db
 ***
@@ -142,4 +142,4 @@ Db
 This class subclass ``DatabaseWorker`` class. This class is responsible for storing scraped data into persistent database.
 Let us take a look at some of the methods defined:
 
-    * *save:* this method is called to handle the process of storing scraped data into a database. The data parameter is the data received from ``DatabaseScheduler``.
+    * *save:* this method is called to handle the process of storing scraped data into a database. The data parameter is the data received from ``DatabaseQueue``.

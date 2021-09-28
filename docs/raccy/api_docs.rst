@@ -16,7 +16,7 @@ UrlDownloaderWorker API
                 * **\**kwargs** - keyword arguments to to pass to python threading.Thread class
 
         | **start_url** - this is the initial url to make request from
-        | **scheduler** - ``ItemUrlScheduler`` object
+        | **url_queue** - ``ItemUrlQueue`` object
         | **mutex** - python threading.Lock object
         | **urls_scraped** - total url downloaded
         | **max_url_download** - maximum number of urls to download
@@ -46,9 +46,9 @@ CrawlerWorker API
                 * **\*args** - arguments to pass to python threading.Thread class
                 * **\**kwargs** - keyword arguments to to pass to python threading.Thread class
 
-        | **url_wait_timeout** - how long to wait for urls from ``ItemUrlScheduler``
-        | **scheduler** - ItemUrlScheduler object
-        | **db_scheduler** - DatabaseScheduler object
+        | **url_wait_timeout** - how long to wait for urls from ``ItemUrlQueue``
+        | **url_queue** - ItemUrlQueue object
+        | **db_queue** - DatabaseQueue object
         | **log** - raccy.logger.logger.logger object
         | **pre_job**
         |       This method is called before parse method is called.
@@ -68,8 +68,8 @@ DatabaseWorker API
 
 **class DatabaseWorker**:
 
-        | **wait_timeout** - how long to wait for data from ``DatabaseScheduler``
-        | **db_scheduler** - ``DatabaseScheduler`` object
+        | **wait_timeout** - how long to wait for data from ``DatabaseQueue``
+        | **db_queue** - ``DatabaseQueue`` object
         | **log** - raccy.logger.logger.logger object
         | **pre_job**
         |       This method is called before save method is called.

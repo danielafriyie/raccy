@@ -6,9 +6,9 @@ Architecture Overview
 UrlDownloaderWorker
 --------------------
 
-Resonsible for downloading item(s) to be scraped urls and enqueue(s) them in **ItemUrlScheduler**
+Resonsible for downloading item(s) to be scraped urls and enqueue(s) them in **ItemUrlQueue**
 
-ItemUrlScheduler
+ItemUrlQueue
 ------------------
 
 Receives item urls from **UrlDownloaderWorker** and enqueues them for feeding them to **CrawlerWorker**
@@ -16,9 +16,9 @@ Receives item urls from **UrlDownloaderWorker** and enqueues them for feeding th
 CrawlerWorker
 --------------
 
-Fetches item web pages and scrapes or extract data from them and enqueues the data in **DatabaseScheduler**
+Fetches item web pages and scrapes or extract data from them and enqueues the data in **DatabaseQueue**
 
-DatabaseScheduler
+DatabaseQueue
 ------------------
 
 Receives scraped item data from **CrawlerWorker(s)** and enques them for feeding them to **DatabaseWorker**.
@@ -26,4 +26,4 @@ Receives scraped item data from **CrawlerWorker(s)** and enques them for feeding
 DatabaseWorker
 ---------------
 
-Receives scraped data from **DatabaseScheduler** and stores it in a persistent database.
+Receives scraped data from **DatabaseQueue** and stores it in a persistent database.
