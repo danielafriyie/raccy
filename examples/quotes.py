@@ -20,7 +20,7 @@ class UrlDownloader(UrlDownloaderWorker):
 
     def job(self):
         url = self.driver.current_url
-        self.scheduler.put(url)
+        self.url_queue.put(url)
         self.follow(xpath="//a[contains(text(), 'Next')]", callback=self.job)
 
 
@@ -38,7 +38,7 @@ class Crawler(CrawlerWorker):
                 'author': author
             }
             self.log.info(data)
-            self.db_scheduler.put(data)
+            self.db_queue.put(data)
 
 
 class Db(DatabaseWorker):
