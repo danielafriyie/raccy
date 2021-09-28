@@ -101,13 +101,6 @@ class UrlDownloaderWorker(BaseCrawlerWorker, metaclass=SingletonMeta):
     urls_scraped = 0
     max_url_download = -1
 
-    def __init__(self, driver: Driver, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.driver = driver
-
-        if self.start_url is None:
-            raise CrawlerException(f"{self.__class__.__name__}: start_url is not defined")
-
     def wait(self, xpath, secs=5, condition=None, action=None):
         driver_wait(
             driver=self.driver,
