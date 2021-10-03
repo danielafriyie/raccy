@@ -87,6 +87,19 @@ class BaseCrawlerWorker(BaseWorker, CrawlerMixin):
             action=action
         )
 
+    def follow(self, xpath=None, url=None, callback=None, *cbargs, **cbkwargs):
+        if xpath is not None and url is not None:
+            raise CrawlerException(
+                f"{self.__class__.__name__}: both xpath and url defined "
+                f"you have to define only one"
+            )
+        if xpath is not None:
+            next_btn_handler(self.driver, next_btn=xpath)
+        if url is not None:
+            self.driver.get(url)
+
+        return callback(*cbargs, **cbkwargs)
+
     def post_job(self):
         self.close_driver()
 
@@ -115,20 +128,10 @@ class UrlDownloaderWorker(BaseCrawlerWorker, metaclass=SingletonMeta):
             if self.urls_scraped > self.max_url_download:
                 return
 
-        if xpath is not None and url is not None:
-            raise CrawlerException(
-                f"{self.__class__.__name__}: both xpath and url is defined in "
-                f"follow method, you have to define only one"
-            )
-        if xpath is not None:
-            next_btn_handler(self.driver, next_btn=xpath)
-        if url is not None:
-            self.driver.get(url)
-
         with self.mutex:
             self.urls_scraped += 1
 
-        return callback(*cbargs, **cbkwargs)
+        return super().follow(xpath=xpath, url=url, callback=callback, *cbargs, **cbkwargs)
 
     def job(self):
         raise NotImplementedError(f"{self.__class__.__name__}.job() method is not implemented")
