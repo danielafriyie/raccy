@@ -114,15 +114,6 @@ class UrlDownloaderWorker(BaseCrawlerWorker, metaclass=SingletonMeta):
     urls_scraped = 0
     max_url_download = -1
 
-    def wait(self, xpath, secs=5, condition=None, action=None):
-        driver_wait(
-            driver=self.driver,
-            xpath=xpath,
-            secs=secs,
-            condition=condition,
-            action=action
-        )
-
     def follow(self, xpath=None, url=None, callback=None, *cbargs, **cbkwargs):
         if self.max_url_download > 0:
             if self.urls_scraped > self.max_url_download:
