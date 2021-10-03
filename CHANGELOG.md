@@ -2,6 +2,12 @@
 
 Track changes in raccy versions and releases.
 
+### 1.2.6
+
+- Refactored `UrlDownloaderWorker`
+- Added `follow` method to `CrawlerWorker`
+
+
 ### 1.2.5
 
 - Deleted scheduler package and moved it's code to `core/queue_.py` module
