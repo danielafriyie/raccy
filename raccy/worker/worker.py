@@ -26,9 +26,6 @@ from raccy.utils.driver import close_driver, next_btn_handler, driver_wait
 from raccy.logger.logger import logger
 from raccy.core.exceptions import CrawlerException
 
-Queue_: BaseQueue = ...
-Driver: WebDriver = ...
-
 
 ##################################
 #       MIXINS
@@ -74,7 +71,7 @@ class BaseCrawlerWorker(BaseWorker, CrawlerMixin):
     Base class for all crawler workers
     """
 
-    def __init__(self, driver: Driver, *args, **kwargs):
+    def __init__(self, driver: WebDriver, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.driver = driver
 
@@ -109,7 +106,7 @@ class UrlDownloaderWorker(BaseCrawlerWorker, metaclass=SingletonMeta):
     Resonsible for downloading item(s) to be scraped urls and enqueue(s) them in ItemUrlQueue
     """
     start_url: str = None
-    url_queue: Queue_ = ItemUrlQueue()
+    url_queue: BaseQueue = ItemUrlQueue()
     mutex = Lock()
     urls_scraped = 0
     max_url_download = -1
@@ -143,8 +140,8 @@ class CrawlerWorker(BaseCrawlerWorker):
     Fetches item web pages and scrapes or extract data and enqueues the data in DatabaseQueue
     """
     url_wait_timeout: Optional[int] = 10
-    url_queue: Queue_ = ItemUrlQueue()
-    db_queue: Queue_ = DatabaseQueue()
+    url_queue: BaseQueue = ItemUrlQueue()
+    db_queue: BaseQueue = DatabaseQueue()
 
     def job(self):
         try:
@@ -169,7 +166,7 @@ class DatabaseWorker(BaseWorker, metaclass=SingletonMeta):
     Receives scraped data from DatabaseQueue and stores it in a persistent database
     """
     data_wait_timeout: Optional[int] = 10
-    db_queue: Queue_ = DatabaseQueue()
+    db_queue: BaseQueue = DatabaseQueue()
 
     def save(self, data: dict) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.save() method is not implemented!")
