@@ -111,6 +111,12 @@ class UrlDownloaderWorker(BaseCrawlerWorker, metaclass=SingletonMeta):
     urls_scraped = 0
     max_url_download = -1
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if self.start_url is None:
+            raise CrawlerException(f"{self.__class__.__name__}: start_url attribute is not defined!")
+
     def follow(self, xpath=None, url=None, callback=None, *cbargs, **cbkwargs):
         if self.max_url_download > 0:
             if self.urls_scraped > self.max_url_download:
