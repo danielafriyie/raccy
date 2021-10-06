@@ -16,8 +16,6 @@ limitations under the License.
 from .orm import (
     Config,
     table_exists,
-    BaseDatabase,
-    BaseSQLDatabase,
     SQLiteDatabase,
     PrimaryKeyField,
     CharField,

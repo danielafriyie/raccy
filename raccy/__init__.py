@@ -15,7 +15,7 @@ limitations under the License.
 """
 from .core.queue_ import ItemUrlQueue, DatabaseQueue
 from .worker.worker import UrlDownloaderWorker, CrawlerWorker, DatabaseWorker, BaseCrawlerWorker
-from .orm import orm as model
+from . import orm as model
 
 __version__ = '1.2.5'
 
