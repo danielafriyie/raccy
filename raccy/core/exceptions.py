@@ -15,41 +15,45 @@ limitations under the License.
 """
 
 
+class ExceptionBase(Exception):
+    """Base exception class for all exceptions"""
+
+
 ########################################
 #       GLOBAL EXCEPTIONS
 #######################################
-class ImproperlyConfigured(ValueError):
+class ImproperlyConfigured(ExceptionBase):
     pass
 
 
 ########################################
 #       ORM EXCEPTIONS
 #######################################
-class ModelDoesNotExist(TypeError):
+class ModelDoesNotExist(ExceptionBase):
     pass
 
 
-class InsertError(TypeError):
+class InsertError(ExceptionBase):
     pass
 
 
-class QueryError(TypeError):
+class QueryError(ExceptionBase):
     pass
 
 
-class DatabaseException(TypeError):
+class DatabaseException(ExceptionBase):
     pass
 
 
 ########################################
 #       CRAWLER EXCEPTIONS
 #######################################
-class CrawlerException(TypeError):
+class CrawlerException(ExceptionBase):
     pass
 
 
 #######################################
 #       QUEUE EXCEPTIONS
 ######################################
-class QueueError(TypeError):
+class QueueError(ExceptionBase):
     pass
