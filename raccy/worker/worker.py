@@ -111,8 +111,8 @@ class UrlDownloaderWorker(BaseCrawlerWorker, metaclass=SingletonMeta):
     urls_scraped = 0
     max_url_download = -1
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, driver: WebDriver, *args, **kwargs):
+        super().__init__(driver, *args, **kwargs)
 
         if self.start_url is None:
             raise CrawlerException(f"{self.__class__.__name__}: start_url attribute is not defined!")
