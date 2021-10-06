@@ -17,4 +17,4 @@ from .meta import SingletonMeta
 
 
 class Settings(metaclass=SingletonMeta):
-    ENABLE_LOGGING = True
+    ENABLE_LOGGING = False

@@ -36,12 +36,10 @@ class _Logger:
         self.filename = filename if filename else self._get_log_file()
 
     def _get_log_file(self):
-        if settings.ENABLE_LOGGING:
-            log_path = os.path.join(self._root_path, 'logs/raccy.log')
-            if not check_path_exists(log_path, isfile=True):
-                os.mkdir(os.path.join(self._root_path, 'logs'))
-            return log_path
-        return None
+        log_path = os.path.join(self._root_path, 'logs/raccy.log')
+        if not check_path_exists(log_path, isfile=True):
+            os.mkdir(os.path.join(self._root_path, 'logs'))
+        return log_path
 
     def _create_logger(self):
         _logger = logging.getLogger(self.name)
@@ -77,5 +75,6 @@ class _Logger:
 
 
 def logger(name: str = None, fmt: str = None, filename: str = None):
-    logger_ = _Logger(name, fmt, filename)
-    return logger_()
+    if settings.ENABLE_LOGGING:
+        _logger = _Logger(name, fmt, filename)
+        return _logger()
