@@ -18,9 +18,6 @@ import pathlib
 import os
 
 from raccy.utils.utils import check_path_exists
-from raccy.core.settings import Settings
-
-settings = Settings()
 
 
 class _Logger:
@@ -75,6 +72,5 @@ class _Logger:
 
 
 def logger(name: str = None, fmt: str = None, filename: str = None):
-    if settings.ENABLE_LOGGING:
-        _logger = _Logger(name, fmt, filename)
-        return _logger()
+    _logger = _Logger(name, fmt, filename)
+    return _logger()
