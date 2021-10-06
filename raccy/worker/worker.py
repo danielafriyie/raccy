@@ -63,7 +63,7 @@ class BaseWorker(Thread):
     def run(self):
         self.pre_job()
         self.job()
-        self.post_job()
+        self.kill()
 
 
 class BaseCrawlerWorker(BaseWorker, CrawlerMixin):
@@ -138,7 +138,7 @@ class UrlDownloaderWorker(BaseCrawlerWorker, metaclass=SingletonMeta):
         except WebDriverException as e:
             self.log.exception(e)
         finally:
-            self.post_job()
+            self.kill()
 
 
 class CrawlerWorker(BaseCrawlerWorker):
@@ -160,11 +160,6 @@ class CrawlerWorker(BaseCrawlerWorker):
 
     def parse(self, url: str) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.parse() method is not implemented")
-
-    def run(self):
-        self.pre_job()
-        self.job()
-        self.post_job()
 
 
 class DatabaseWorker(BaseWorker, metaclass=SingletonMeta):
