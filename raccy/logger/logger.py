@@ -18,6 +18,9 @@ import pathlib
 import os
 
 from raccy.utils.utils import check_path_exists
+from raccy.core.settings import Settings
+
+settings = Settings()
 
 
 class _Logger:
@@ -33,10 +36,12 @@ class _Logger:
         self.filename = filename if filename else self._get_log_file()
 
     def _get_log_file(self):
-        log_path = os.path.join(self._root_path, 'logs/raccy.log')
-        if not check_path_exists(log_path, isfile=True):
-            os.mkdir(os.path.join(self._root_path, 'logs'))
-        return log_path
+        if settings.ENABLE_LOGGING:
+            log_path = os.path.join(self._root_path, 'logs/raccy.log')
+            if not check_path_exists(log_path, isfile=True):
+                os.mkdir(os.path.join(self._root_path, 'logs'))
+            return log_path
+        return None
 
     def _create_logger(self):
         _logger = logging.getLogger(self.name)
