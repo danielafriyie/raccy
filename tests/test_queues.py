@@ -6,8 +6,8 @@ import sys
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(BASE_DIR)
 
-from raccy import ItemUrlScheduler, DatabaseScheduler
-from raccy.core.exceptions import SchedulerError
+from raccy import DatabaseQueue, UrlDownloaderWorker
+from raccy.core.exceptions import QueueError
 
 
 class TestSingleInstance(unittest.TestCase):
