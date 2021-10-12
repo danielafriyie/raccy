@@ -108,7 +108,7 @@ class UrlDownloaderWorker(BaseCrawlerWorker, metaclass=SingletonMeta):
     start_url: str = None
     url_queue: BaseQueue = ItemUrlQueue()
     mutex = Lock()
-    urls_scraped = 0
+    urls_scraped = 1
     max_url_download = -1
 
     def __init__(self, driver: WebDriver, *args, **kwargs):
