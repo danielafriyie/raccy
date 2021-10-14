@@ -21,6 +21,8 @@ with open('README.md', 'r', encoding='utf-8') as f:
 
 install_requires = [
     'selenium>=3.141.0',
+    'wget==3.2',
+    'requests==2.26.0'
 ]
 
 include = (
