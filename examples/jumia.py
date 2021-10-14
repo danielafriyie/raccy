@@ -6,7 +6,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from shutil import which
 
 config = model.Config()
-config.DATABASE = model.SQLiteDatabase('data/jumia.sqlite3')
+config.DATABASE = model.SQLiteDatabase('your database path eg.(path/db.sqlite3)')
+DOWNLOAD_PATH = "your download path"
 
 
 class Product(model.Model):
@@ -63,15 +64,15 @@ class Crawler(CrawlerWorker):
         self.driver.execute_script("window.open('');")
         self.driver.switch_to.window(self.driver.window_handles[1])
         self.driver.get(product_url)
-        # img_url = self.driver.find_element_by_xpath("//div[@id='imgs']/a").get_attribute('href')
+        img_url = self.driver.find_element_by_xpath("//div[@id='imgs']/a").get_attribute('href')
         data = dict(
-            product_url=product_url,
+            url=product_url,
             name=self._get_data("//h1[@class='-fs20 -pts -pbxs']"),
             brand=self._get_data("//div[@class='-pvxs']"),
             price=self._get_data("(//span[@dir='ltr'])[2]"),
             discounted_price=self._get_data("(//span[@dir='ltr'])[1]"),
             discount=self._get_data("//span[@class='tag _dsct _dyn -mls']"),
-            # image_path = self.driver.find_element_by_xpath().text
+            image_path=self.download_image(img_url, DOWNLOAD_PATH),
             ratings=self._get_data("//div[@class='-fs29 -yl5 -pvxs']/span"),
             category='mobile phones'
         )
@@ -89,7 +90,7 @@ class Db(DatabaseWorker):
 
 
 def get_driver():
-    driver_path = which('.\\chromedriver.exe')
+    driver_path = which('your driver path')
     options = webdriver.ChromeOptions()
     options.add_argument("--start-maximized")
     driver = webdriver.Chrome(executable_path=driver_path, options=options)

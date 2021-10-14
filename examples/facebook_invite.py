@@ -6,7 +6,7 @@ from raccy.utils.utils import random_delay
 
 
 def get_driver():
-    driver_path = which('.\\chromedriver.exe')
+    driver_path = which('your driver path')
     options = webdriver.ChromeOptions()
     options.add_argument("--start-maximized")
     driver = webdriver.Chrome(executable_path=driver_path, options=options)

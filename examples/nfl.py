@@ -6,7 +6,7 @@ from selenium.webdriver.support.ui import Select
 from shutil import which
 
 config = model.Config()
-config.DATABASE = model.SQLiteDatabase('nfl.sqlite3')
+config.DATABASE = model.SQLiteDatabase('your database path eg.(path/db.sqlite3)')
 
 
 class NflModel(model.Model):
@@ -78,7 +78,7 @@ class Db(DatabaseWorker):
 
 
 def get_driver():
-    driver_path = which('.\\chromedriver.exe')
+    driver_path = which('your driver path')
     options = webdriver.ChromeOptions()
     options.add_argument("--start-maximized")
     driver = webdriver.Chrome(executable_path=driver_path, options=options)
