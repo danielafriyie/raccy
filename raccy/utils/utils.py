@@ -16,6 +16,7 @@ limitations under the License.
 import os
 from random import randint
 from time import sleep
+from urllib.parse import urlparse
 
 import wget
 import requests
@@ -27,8 +28,31 @@ def download(url, save_path):
     return path
 
 
+def _get_filepath(filename, save_path):
+    return os.path.join(save_path, filename)
+
+
+def _get_filename(url, save_path):
+    fn = os.path.basename(urlparse(url).path)
+    fp = _get_filepath(fn, save_path)
+    counter = 1
+    while True:
+        if os.path.isfile(fp):
+            fn_split = fn.split('.')
+            ext = fn_split.pop()
+            fn_without_ext = ''.join(fn_split)
+            temp_fn = f"{fn_without_ext}({counter}).{ext}"
+            fp = _get_filepath(temp_fn, save_path)
+            counter += 1
+            continue
+        return fp
+
+
 def download_image(url, save_path):
-    pass
+    response = requests.get(url, allow_redirects=True)
+    img_path = _get_filename(response.url, save_path)
+    with open(img_path, 'wb') as img:
+        img.write(response.content)
 
 
 def check_path_exists(path: str, isfile=False) -> bool:
