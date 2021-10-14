@@ -18,12 +18,17 @@ from random import randint
 from time import sleep
 
 import wget
+import requests
 
 
 def download(url, save_path):
     filename = wget.download(url, save_path)
     path = os.path.join(save_path, filename)
     return path
+
+
+def download_image(url, save_path):
+    pass
 
 
 def check_path_exists(path: str, isfile=False) -> bool:
