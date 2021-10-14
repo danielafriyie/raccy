@@ -48,9 +48,16 @@ def _get_filename(url, save_path):
         return fp
 
 
-def download_image(url, save_path):
+def get_filename(url, path, mutex=None):
+    if mutex is None:
+        return _get_filename(url, path)
+    with mutex:
+        return _get_filename(url, path)
+
+
+def download_image(url, save_path, mutex=None):
     response = requests.get(url, allow_redirects=True)
-    img_path = _get_filename(response.url, save_path)
+    img_path = get_filename(response.url, save_path, mutex)
     with open(img_path, 'wb') as img:
         img.write(response.content)
     return img_path
