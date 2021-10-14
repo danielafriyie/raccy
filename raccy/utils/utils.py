@@ -40,7 +40,7 @@ def _get_filename(url, save_path):
         if os.path.isfile(fp):
             fn_split = fn.split('.')
             ext = fn_split.pop()
-            fn_without_ext = ''.join(fn_split)
+            fn_without_ext = '.'.join(fn_split)
             temp_fn = f"{fn_without_ext}({counter}).{ext}"
             fp = _get_filepath(temp_fn, save_path)
             counter += 1
