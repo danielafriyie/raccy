@@ -7,6 +7,8 @@ Track changes in raccy versions and releases.
 - Refactored `UrlDownloaderWorker`
 - Added `follow` method to `CrawlerWorker`
 - Refactored `worker.py` module
+- Added `download` method to `CrawlerWorker`
+- Added `download_image` method to `CrawlerWorker`
 
 
 ### 1.2.5
