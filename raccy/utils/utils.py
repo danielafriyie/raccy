@@ -53,6 +53,7 @@ def download_image(url, save_path):
     img_path = _get_filename(response.url, save_path)
     with open(img_path, 'wb') as img:
         img.write(response.content)
+    return img_path
 
 
 def check_path_exists(path: str, isfile=False) -> bool:
