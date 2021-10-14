@@ -25,6 +25,7 @@ from raccy.core.queue_ import DatabaseQueue, BaseQueue, ItemUrlQueue
 from raccy.utils.driver import close_driver, next_btn_handler, driver_wait
 from raccy.logger.logger import logger
 from raccy.core.exceptions import CrawlerException
+from raccy.utils.utils import download_image, download
 
 
 ##################################
@@ -70,6 +71,7 @@ class BaseCrawlerWorker(BaseWorker, CrawlerMixin):
     """
     Base class for all crawler workers
     """
+    mutex = Lock()
 
     def __init__(self, driver: WebDriver, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -107,7 +109,6 @@ class UrlDownloaderWorker(BaseCrawlerWorker, metaclass=SingletonMeta):
     """
     start_url: str = None
     url_queue: BaseQueue = ItemUrlQueue()
-    mutex = Lock()
     urls_scraped = 1
     max_url_download = -1
 
@@ -148,6 +149,12 @@ class CrawlerWorker(BaseCrawlerWorker):
     url_wait_timeout: Optional[int] = 10
     url_queue: BaseQueue = ItemUrlQueue()
     db_queue: BaseQueue = DatabaseQueue()
+
+    def download_image(self, url, save_path):
+        return download_image(url, save_path, self.mutex)
+
+    def download_file(self, url, save_path):
+        return download(url, save_path)
 
     def job(self):
         try:
