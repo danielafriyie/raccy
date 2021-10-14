@@ -17,6 +17,14 @@ import os
 from random import randint
 from time import sleep
 
+import wget
+
+
+def download(url, save_path):
+    filename = wget.download(url, save_path)
+    path = os.path.join(save_path, filename)
+    return path
+
 
 def check_path_exists(path: str, isfile=False) -> bool:
     return os.path.isfile(path) if isfile else os.path.exists(path)
