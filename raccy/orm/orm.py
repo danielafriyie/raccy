@@ -419,7 +419,7 @@ class SQLiteQueryBuilder(BaseSQLiteQueryBuilder):
         return self._render_stmt(SQLiteLimitSQLStmt, *self._get_partials(), value)
 
     def bulk_update(self, table_name, builder, **kwargs):
-        return self._render_stmt(SQLiteBulkUpdateSQLStmt, table_name, builder, **kwargs)
+        return self._render_stmt(SQLiteBulkUpdateSQLStmt, *self._get_partials(), table_name, builder, **kwargs)
 
 
 class SQLiteSelectSQLStmt(BaseSQLiteQueryBuilder):
@@ -659,7 +659,7 @@ class SQLiteDbMapper(BaseSQLDbMapper):
         return self.__query_builder__.where(*args)
 
     def _render_bulk_update_sql_stmt(self, table_name, **kwargs):
-        self.__query_builder__.bulk_update(table_name, self.__query_builder__, **kwargs)
+        return self.__query_builder__.bulk_update(table_name, self.__query_builder__, **kwargs)
 
     def _render_limit_sql_stmt(self, value):
         return self.__query_builder__.limit(value)
@@ -898,6 +898,7 @@ class BaseQuery:
 
 
 class QuerySet(BaseQuery):
+    """Query class for simple queries"""
 
     def update(self, **kwargs):
         sql, values = self._mapper._render_update_sql_stmt(self._table, self.pk, self._pk_field, **kwargs)
