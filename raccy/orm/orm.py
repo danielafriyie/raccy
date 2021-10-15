@@ -49,6 +49,15 @@ def table_exists(table):
     return table in tables
 
 
+def abstractmethod(func):
+    """A decorator indicating a method is abstract method"""
+
+    def wrap(self, *args, **kwargs):
+        raise NotImplementedError(f"{self.__class__.__name__}.{func.__name__} is not implemented!")
+
+    return wrap
+
+
 #################################################
 #       DATABASE CONFIGURATION
 #################################################
@@ -114,11 +123,10 @@ class Migration:
         if not check_path_exists(self.migrations_dir):
             os.mkdir(self.migrations_dir)
 
-    def create_migrations(self, table, fields):
-        migrations = self.get_migrations()
-        migrations[table] = fields
+    def mk_migrations(self, table, fields):
+        self._migrations[table] = fields
         with open(self.migrations_path, 'w') as file:
-            json.dump(migrations, file)
+            json.dump(self._migrations, file)
 
     def get_migrations(self):
         if not check_path_exists(self.migrations_path, isfile=True):
@@ -126,6 +134,176 @@ class Migration:
         with open(self.migrations_path) as file:
             migrations = json.load(file)
         return migrations
+
+
+#####################################################
+#       SQL AND QUERY BUILDERS
+#####################################################
+class BaseSQLBuilder:
+    """Base class for all sql and query builders"""
+
+    @property
+    def partial_sql(self):
+        return self._partial_sql
+
+    @abstractmethod
+    def _build_sql(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def sql(self):
+        pass
+
+
+#######################################
+#       SQLITE SQL AND QUERY BUILDERS
+#######################################
+class SQLiteSQLBuilder(BaseSQLBuilder):
+    pass
+
+
+class SQLiteCreateTableSQLStmt(SQLiteSQLBuilder):
+
+    def __init__(self, table_name, **kwargs):
+        self._table_name = table_name
+        self._kwargs = kwargs
+        self._partial_sql = None
+
+    def _build_sql(self, table_name, **kwargs):
+        fields = []
+        foreign_key_sql = []
+        migration_fields = {}
+        migration = Migration(table_name, kwargs)
+        add_fields, del_fields = migration.operations()
+        if not table_exists(table_name):
+            for name, field in kwargs.items():
+                if isinstance(field, ForeignKeyField):
+                    foreign_key_sql.append(field._foreign_key_sql(name))
+                fields.append(f"{name} {field.sql}")
+                migration_fields[name] = field.type_string
+
+            fields = ', '.join(fields)
+            if foreign_key_sql:
+                fields = fields + ','
+            foreign_key_sql = ', '.join(foreign_key_sql) if foreign_key_sql else ''
+
+            sql = f"""
+                    PRAGMA foreign_keys = ON;
+
+                    CREATE TABLE IF NOT EXISTS {table_name} (
+                        {fields} 
+                        {foreign_key_sql}
+                    );
+                """
+            migration.mk_migrations(table_name, migration_fields)
+            return sql
+
+        if del_fields:
+            raise DatabaseException(
+                f"{table_name}: sqlite database does not support deleting field after table is created."
+            )
+
+        if add_fields:
+            for name, field in add_fields:
+                if isinstance(field, ForeignKeyField):
+                    raise DatabaseException(
+                        f"{table_name}: sqlite database does not support adding foreign key"
+                        f" field after table is created."
+                    )
+                if isinstance(field, PrimaryKeyField):
+                    raise DatabaseException(
+                        f"{table_name}: sqlite database does not support adding primary key "
+                        f"field after table is created."
+                    )
+                fields.append(f"{name} {field.sql}")
+                migration_fields[name] = field.type_string
+
+            sql = ""
+            for f in fields:
+                sql += f"""
+                        ALTER TABLE {table_name}
+                        ADD COLUMN {f};
+                    """
+            existing_fields = migration._migrations[table_name]
+            existing_fields.update(migration_fields)
+            migration.mk_migrations(table_name, existing_fields)
+            return sql
+
+    @property
+    def sql(self):
+        return self._build_sql(self._table_name, **self._kwargs)
+
+
+class SQLiteInsertSQLStmt(SQLiteSQLBuilder):
+
+    def __init__(self, table_name, **kwargs):
+        self._table_name = table_name
+        self._kwargs = kwargs
+        self._partial_sql = None
+
+    def _build_sql(self, table_name, **kwargs):
+        insert_sql = 'INSERT INTO {name} ({fields}) VALUES ({placeholders});'
+        fields, values, placeholders = [], [], []
+
+        for key, val in kwargs.items():
+            fields.append(key)
+            placeholders.append('?')
+            values.append(val)
+
+        sql = insert_sql.format(name=table_name, fields=', '.join(fields), placeholders=', '.join(placeholders))
+        return sql, values
+
+    @property
+    def sql(self):
+        return self._build_sql(self._table_name, **self._kwargs)
+
+
+class SQLiteUpdateSQLStmt(SQLiteSQLBuilder):
+
+    def __init__(self, table_name, pk, pk_field, **kwargs):
+        self._table_name = table_name
+        self._pk = pk
+        self._pk_field = pk_field
+        self._kwargs = kwargs
+
+    def _build_sql(self, table_name, pk, pk_field, **kwargs):
+        update_sql = "UPDATE {table} SET {placeholders} WHERE {query};"
+        query = f"{pk_field}=?"
+        values, placeholders = [], []
+
+        for key, val in kwargs.items():
+            values.append(val)
+            placeholders.append(f"{key}=?")
+
+        values.append(pk)
+        sql = update_sql.format(table=table_name, placeholders=', '.join(placeholders), query=query)
+        return sql, values
+
+    @property
+    def sql(self):
+        return self._build_sql(self._table_name, self._pk, self._pk_field, **self._kwargs)
+
+
+class SQLiteDeleteSQLStmt(SQLiteSQLBuilder):
+
+    def __init__(self, table_name, **kwargs):
+        self._table_name = table_name
+        self._kwargs = kwargs
+
+    def _build_sql(self, table_name, **kwargs):
+        delete_sql = 'DELETE FROM {table} WHERE {query};'
+        query, values = [], []
+
+        for key, val in kwargs.items():
+            values.append(val)
+            query.append(f'{key}=?')
+
+        sql = delete_sql.format(table=table_name, query=' AND '.join(query))
+        return sql, values
+
+    @property
+    def sql(self):
+        return self._build_sql(self._table_name, **self._kwargs)
 
 
 ####################################################
@@ -149,48 +327,56 @@ class BaseSQLDbMapper(BaseDbMapper):
     DATETIMEFIELD = None
     FOREIGNKEYFIELD = None
 
-    # FILTERING DATA
-    GT = None
-    LT = None
-    EQ = None
-    NE = None
-    IN = None
-    GTE = None
-    LTE = None
-    LIKE = None
-    LIMIT = None
-    BETWEEN = None
-    DISTINCT = None
+    # OPERATIONS FOR USE IN SQL EXPRESSIONS
+    GT = ">"
+    LT = "<"
+    EQ = "="
+    NE = "<>"
+    GTE = ">="
+    LTE = "<="
+    LIKE = 'LIKE'
+    LIMIT = 'LIMIT'
+    DISTINCT = 'DISTINCT'
 
+    @abstractmethod
     def _render_foreign_key_sql_stmt(self, model, field_name, on_field, on_delete='CASCADE', on_update='CASCADE'):
-        raise NotImplementedError(f"{self.__class__.__name__}: _render_foreign_key_sql_stmt is not implemented!")
+        pass
 
+    @abstractmethod
     def _render_field_sql_stmt(self, type_, max_length=None, null=True, unique=False, default=None):
-        raise NotImplementedError(f"{self.__class__.__name__}: _render_field_sql_stmt is not implemented!")
+        pass
 
+    @abstractmethod
     def _render_create_table_sql_stmt(self, table_name, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}: _render_create_table_sql_stmt is not implemented!")
+        pass
 
+    @abstractmethod
     def _render_insert_sql_stmt(self, table_name, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}: _render_insert_sql_stmt is not implemented!")
+        pass
 
+    @abstractmethod
     def _render_update_sql_stmt(self, table_name, pk, pk_field, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}: _render_update_sql_stmt is not implemented!")
+        pass
 
+    @abstractmethod
     def _render_bulk_update_sql_stmt(self, table_name, query_dict, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}: _render_bulk_update_sql_stmt is not implemented!")
+        pass
 
+    @abstractmethod
     def _render_delete_sql_stmt(self, table_name, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}: _render_delete_sql_stmt is not implemented!")
+        pass
 
+    @abstractmethod
     def _render_select_sql_stmt(self, table, fields, distinct=False):
-        raise NotImplementedError(f"{self.__class__.__name__}: _render_select_sql_stmt is not implemented!")
+        pass
 
+    @abstractmethod
     def _render_select_where_sql_stmt(self, *query):
-        raise NotImplementedError(f"{self.__class__.__name__}: _render_select_where_sql_stmt is not implemented!")
+        pass
 
+    @abstractmethod
     def _render_limit_sql_stmt(self, value):
-        raise NotImplementedError(f"{self.__class__.__name__}: _render_limit_sql_stmt is not implemented!")
+        pass
 
     __interim_sql__ = None
     __interim_values__ = None
@@ -208,16 +394,6 @@ class SQLiteDbMapper(BaseSQLDbMapper):
     DATEFIELD = "DATE"
     DATETIMEFIELD = "DATETIME"
     FOREIGNKEYFIELD = "INTEGER"
-
-    GT = ">"
-    LT = "<"
-    EQ = "="
-    NE = "<>"
-    GTE = ">="
-    LTE = "<="
-    LIKE = 'LIKE'
-    LIMIT = 'LIMIT'
-    DISTINCT = 'DISTINCT'
 
     def _join_sql_stmt(self, *statements, values=None):
         stmts = ''
@@ -254,85 +430,15 @@ class SQLiteDbMapper(BaseSQLDbMapper):
         return sql
 
     def _render_create_table_sql_stmt(self, table_name, **kwargs):
-        fields = []
-        foreign_key_sql = []
-        migration_fields = {}
-        migration = Migration(table_name, kwargs)
-        add_fields, del_fields = migration.operations()
-        if not table_exists(table_name):
-            for name, field in kwargs.items():
-                if isinstance(field, ForeignKeyField):
-                    foreign_key_sql.append(field._foreign_key_sql(name))
-                fields.append(f"{name} {field.sql}")
-                migration_fields[name] = field.type_string
-
-            fields = ', '.join(fields)
-            if foreign_key_sql:
-                fields = fields + ','
-            foreign_key_sql = ', '.join(foreign_key_sql) if foreign_key_sql else ''
-
-            sql = f"""
-                    PRAGMA foreign_keys = ON;
-
-                    CREATE TABLE IF NOT EXISTS {table_name} (
-                        {fields} 
-                        {foreign_key_sql}
-                    );
-                """
-            migration.create_migrations(table_name, migration_fields)
-            return sql
-
-        if del_fields:
-            raise DatabaseException(
-                f"{table_name}: sqlite database does not support deleting field after table is created."
-            )
-
-        if add_fields:
-            for name, field in add_fields:
-                if isinstance(field, ForeignKeyField):
-                    raise DatabaseException(
-                        f"{table_name}: sqlite database does not support adding foreign key"
-                        f" field after table is created."
-                    )
-                if isinstance(field, PrimaryKeyField):
-                    raise DatabaseException(f"{table_name}: cannot add primary key field after table is created.")
-                fields.append(f"{name} {field.sql}")
-                migration_fields[name] = field.type_string
-
-            sql = ""
-            for f in fields:
-                sql += f"""
-                        ALTER TABLE {table_name}
-                        ADD COLUMN {f};
-                    """
-            existing_fields = migration._migrations[table_name]
-            existing_fields.update(migration_fields)
-            migration.create_migrations(table_name, existing_fields)
-            return sql
+        sql = SQLiteCreateTableSQLStmt(table_name, **kwargs).sql
+        return sql
 
     def _render_insert_sql_stmt(self, table_name, **kwargs):
-        insert_sql = 'INSERT INTO {name} ({fields}) VALUES ({placeholders});'
-        fields, values, placeholders = [], [], []
-
-        for key, val in kwargs.items():
-            fields.append(key)
-            placeholders.append('?')
-            values.append(val)
-
-        sql = insert_sql.format(name=table_name, fields=', '.join(fields), placeholders=', '.join(placeholders))
+        sql, values = SQLiteInsertSQLStmt(table_name, **kwargs).sql
         return sql, values
 
     def _render_update_sql_stmt(self, table_name, pk, pk_field, **kwargs):
-        update_sql = "UPDATE {table} SET {placeholders} WHERE {query};"
-        query = f"{pk_field}=?"
-        values, placeholders = [], []
-
-        for key, val in kwargs.items():
-            values.append(val)
-            placeholders.append(f"{key}=?")
-
-        values.append(pk)
-        sql = update_sql.format(table=table_name, placeholders=', '.join(placeholders), query=query)
+        sql, values = SQLiteUpdateSQLStmt(table_name, pk, pk_field, **kwargs).sql
         return sql, values
 
     def _render_bulk_update_sql_stmt(self, table_name, **kwargs):
@@ -355,14 +461,7 @@ class SQLiteDbMapper(BaseSQLDbMapper):
         return sql, values
 
     def _render_delete_sql_stmt(self, table_name, **kwargs):
-        delete_sql = 'DELETE FROM {table} WHERE {query};'
-        query, values = [], []
-
-        for key, val in kwargs.items():
-            values.append(val)
-            query.append(f'{key}=?')
-
-        sql = delete_sql.format(table=table_name, query=' AND '.join(query))
+        sql, values = SQLiteDeleteSQLStmt(table_name, **kwargs).sql
         return sql, values
 
     def _render_select_sql_stmt(self, table, fields, distinct=False):
@@ -411,26 +510,33 @@ class BaseDatabase:
 class BaseSQLDatabase(BaseDatabase):
     """Base databae class for all SQL databases"""
 
+    @abstractmethod
     def execute(self, *args, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}: execute is not implemented")
+        pass
 
+    @abstractmethod
     def exec_lastrowid(self, *args, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}: exec_lastrowid is not implemented")
+        pass
 
+    @abstractmethod
     def executescript(self, *args, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}: executescript is not implemented")
+        pass
 
+    @abstractmethod
     def commit(self):
-        raise NotImplementedError(f"{self.__class__.__name__}: commit is not implemented")
+        pass
 
+    @abstractmethod
     def fetchone(self, *args, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}: fetchone is not implemented")
+        pass
 
+    @abstractmethod
     def fetchall(self, *args, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}: fetchall is not implemented")
+        pass
 
+    @abstractmethod
     def tables(self) -> list:
-        raise NotImplementedError(f"{self.__class__.__name__}: tables is not implemented")
+        pass
 
 
 class SQLiteDatabase(BaseSQLDatabase):
