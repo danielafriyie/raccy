@@ -373,7 +373,8 @@ class BaseSQLiteQueryBuilder(SQLiteSQLBuilder):
     def _join_partial_sqls(self, *statements, values=None):
         stmts = ''
         for stmt in statements:
-            stmts += stmt
+            if stmt:
+                stmts += stmt
         return stmts, values
 
     def _set_partial(self, partial, value):
@@ -404,8 +405,9 @@ class SQLiteQueryBuilder(BaseSQLiteQueryBuilder):
 
     def _render_stmt(self, klass, *args, **kwargs):
         stmt = klass(*args, **kwargs)
+        sql = stmt.sql
         self._set_partials(stmt)
-        return stmt.sql
+        return sql
 
     def select(self, table, fields, distinct=False):
         return self._render_stmt(SQLiteSelectSQLStmt, table, fields, distinct)
@@ -469,7 +471,7 @@ class SQLiteWhereSQLStmt(BaseSQLiteQueryBuilder):
         sql, values = self._join_partial_sqls(
             self._partial_sql,
             where_sql.format(query=' AND '.join(query)),
-            values
+            values=values
         )
         self._set_partials(sql, values, self._args)
         sql = sql + ';'
@@ -742,8 +744,8 @@ class SQLiteDatabase(BaseSQLDatabase):
         return qs.fetchall()
 
     def tables(self):
-        sql = "SELECT name FROM sqlite_master WHERE type='table';"
-        qs = self.fetchall(sql)
+        sql = "SELECT name FROM sqlite_master WHERE type=?;"
+        qs = self.fetchall(sql, ('table',))
         tables = [x[0] for x in qs]
         return tables
 
@@ -887,11 +889,12 @@ class BaseQuery:
     def get_data(self):
         return self._data
 
-    def __getattribute__(self, item):
-        data = object.__getattribute__(self, '_data')
-        if isinstance(data, dict) and item in data:
-            return data[item]
-        return object.__getattribute__(self, item)
+    def __getattr__(self, item):
+        try:
+            if isinstance(self._data, dict):
+                return self._data[item]
+        except KeyError:
+            raise AttributeError(item)
 
 
 class QuerySet(BaseQuery):
