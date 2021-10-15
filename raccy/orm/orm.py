@@ -17,6 +17,7 @@ import sqlite3 as sq
 import pathlib
 import os
 import json
+from textwrap import dedent
 
 from raccy.core.meta import SingletonMeta
 from raccy.core.exceptions import (
@@ -154,6 +155,9 @@ class BaseSQLBuilder:
     def partial_sql(self):
         return self._partial_sql
 
+    def _clean_stmt(self, stmt):
+        return dedent(stmt) if stmt else stmt
+
     @abstractmethod
     def _build_sql(self, *args, **kwargs):
         pass
@@ -239,7 +243,8 @@ class SQLiteCreateTableSQLStmt(SQLiteSQLBuilder):
 
     @property
     def sql(self):
-        return self._build_sql(self._table_name, **self._kwargs)
+        sql = self._clean_stmt(self._build_sql(self._table_name, **self._kwargs))
+        return sql
 
 
 class SQLiteInsertSQLStmt(SQLiteSQLBuilder):
@@ -259,7 +264,7 @@ class SQLiteInsertSQLStmt(SQLiteSQLBuilder):
             values.append(val)
 
         sql = insert_sql.format(name=table_name, fields=', '.join(fields), placeholders=', '.join(placeholders))
-        return sql, values
+        return self._clean_stmt(sql), values
 
     @property
     def sql(self):
@@ -285,7 +290,7 @@ class SQLiteUpdateSQLStmt(SQLiteSQLBuilder):
 
         values.append(pk)
         sql = update_sql.format(table=table_name, placeholders=', '.join(placeholders), query=query)
-        return sql, values
+        return self._clean_stmt(sql), values
 
     @property
     def sql(self):
@@ -307,7 +312,7 @@ class SQLiteDeleteSQLStmt(SQLiteSQLBuilder):
             query.append(f'{key}=?')
 
         sql = delete_sql.format(table=table_name, query=' AND '.join(query))
-        return sql, values
+        return self._clean_stmt(sql), values
 
     @property
     def sql(self):
@@ -330,7 +335,7 @@ class SQLiteForeignKeySQLStmt(SQLiteSQLBuilder):
                 ON UPDATE {on_update}
                 ON DELETE {on_delete}
         """
-        return sql
+        return self._clean_stmt(sql)
 
     @property
     def sql(self):
@@ -356,7 +361,7 @@ class SQLiteFieldSQLStmt(SQLiteSQLBuilder):
             sql = sql + ' UNIQUE'
         if default is False or default:
             sql = sql + f' DEFAULT {default}'
-        return sql
+        return self._clean_stmt(sql)
 
     @property
     def sql(self):
@@ -434,7 +439,7 @@ class SQLiteSelectSQLStmt(BaseSQLiteQueryBuilder):
         )
         self._set_partials(sql, self._partial_values, self._partial_dict)
         sql = sql + ';'
-        return sql
+        return self._clean_stmt(sql)
 
     @property
     def sql(self):
@@ -468,7 +473,7 @@ class SQLiteWhereSQLStmt(BaseSQLiteQueryBuilder):
         )
         self._set_partials(sql, values, self._args)
         sql = sql + ';'
-        return sql, values
+        return self._clean_stmt(sql), values
 
     @property
     def sql(self):
@@ -488,7 +493,7 @@ class SQLiteLimitSQLStmt(BaseSQLiteQueryBuilder):
         sql = ' {limit} {value} '.format(limit=_config.DBMAPPER.LIMIT, value=value)
         self._set_partials(sql)
         sql = sql + ';'
-        return sql
+        return self._clean_stmt(sql)
 
     @property
     def sql(self):
@@ -522,7 +527,7 @@ class SQLiteBulkUpdateSQLStmt(BaseSQLiteQueryBuilder):
             sql, _values = self._builder.where(*self._partial_dict)
             values += _values
 
-        return sql, values
+        return self._clean_stmt(sql), values
 
     @property
     def sql(self):
