@@ -143,6 +143,14 @@ class BaseSQLBuilder:
     """Base class for all sql and query builders"""
 
     @property
+    def partial_dict(self):
+        return self._partial_dict
+
+    @property
+    def partial_values(self):
+        return self._partial_values
+
+    @property
     def partial_sql(self):
         return self._partial_sql
 
@@ -306,6 +314,222 @@ class SQLiteDeleteSQLStmt(SQLiteSQLBuilder):
         return self._build_sql(self._table_name, **self._kwargs)
 
 
+class SQLiteForeignKeySQLStmt(SQLiteSQLBuilder):
+
+    def __init__(self, model, field_name, on_field, on_delete='CASCADE', on_update='CASCADE'):
+        self._model = model
+        self._field_name = field_name
+        self._on_field = on_field
+        self._on_delete = on_delete
+        self._on_update = on_update
+
+    def _build_sql(self, model, field_name, on_field, on_delete='CASCADE', on_update='CASCADE'):
+        sql = f"""
+            FOREIGN KEY ({field_name})
+            REFERENCES {model} ({on_field}) 
+                ON UPDATE {on_update}
+                ON DELETE {on_delete}
+        """
+        return sql
+
+    @property
+    def sql(self):
+        return self._build_sql(self._model, self._field_name, self._on_field, self._on_delete, self._on_update)
+
+
+class SQLiteFieldSQLStmt(SQLiteSQLBuilder):
+
+    def __init__(self, type_, max_length=None, null=True, unique=False, default=None):
+        self._type = type_
+        self._max_length = max_length
+        self._null = null
+        self._unique = unique
+        self._default = default
+
+    def _build_sql(self, type_, max_length=None, null=True, unique=False, default=None):
+        sql = f'{type_}'
+        if max_length:
+            sql = sql + f' ({max_length})'
+        if null is False:
+            sql = sql + ' NOT NULL'
+        if unique:
+            sql = sql + ' UNIQUE'
+        if default is False or default:
+            sql = sql + f' DEFAULT {default}'
+        return sql
+
+    @property
+    def sql(self):
+        return self._build_sql(self._type, self._max_length, self._null, self._unique, self._default)
+
+
+class BaseSQLiteQueryBuilder(SQLiteSQLBuilder):
+
+    def _join_partial_sqls(self, *statements, values=None):
+        stmts = ''
+        for stmt in statements:
+            stmts += stmt
+        return stmts, values
+
+    def _set_partial(self, partial, value):
+        if value:
+            partial = value
+        return partial
+
+    def _set_partials(self, sql=None, values=None, dict_=None):
+        self._partial_sql = self._set_partial(self._partial_sql, sql)
+        self._partial_values = self._set_partial(self._partial_values, values)
+        self._partial_dict = self._set_partial(self._partial_dict, dict_)
+
+
+class SQLiteQueryBuilder(BaseSQLiteQueryBuilder):
+
+    def __init__(self):
+        self._partial_sql = None
+        self._partial_values = None
+        self._partial_dict = None
+
+    def _set_partials(self, stmt):
+        self._partial_sql = self._set_partial(self._partial_sql, stmt.partial_sql)
+        self._partial_values = self._set_partial(self._partial_values, stmt.partial_values)
+        self._partial_dict = self._set_partial(self._partial_dict, stmt.partial_dict)
+
+    def _get_partials(self):
+        return self._partial_sql, self._partial_values, self._partial_dict
+
+    def _render_stmt(self, klass, *args, **kwargs):
+        stmt = klass(*args, **kwargs)
+        self._set_partials(stmt)
+        return stmt.sql
+
+    def select(self, table, fields, distinct=False):
+        return self._render_stmt(SQLiteSelectSQLStmt, table, fields, distinct)
+
+    def where(self, *args):
+        return self._render_stmt(SQLiteWhereSQLStmt, *self._get_partials(), *args)
+
+    def limit(self, value):
+        return self._render_stmt(SQLiteLimitSQLStmt, *self._get_partials(), value)
+
+    def bulk_update(self, table_name, builder, **kwargs):
+        return self._render_stmt(SQLiteBulkUpdateSQLStmt, table_name, builder, **kwargs)
+
+
+class SQLiteSelectSQLStmt(BaseSQLiteQueryBuilder):
+
+    def __init__(self, table, fields, distinct=False):
+        self._table = table
+        self._fields = fields
+        self._distinct = distinct
+        self._partial_sql = None
+        self._partial_values = None
+        self._partial_dict = None
+
+    def _build_sql(self, table, fields, distinct=False):
+        select_sql = 'SELECT {distinct} {fields} FROM {table}'
+        sql = select_sql.format(
+            table=table,
+            fields=', '.join(fields),
+            distinct=_config.DBMAPPER.DISTINCT if distinct else ''
+        )
+        self._set_partials(sql, self._partial_values, self._partial_dict)
+        sql = sql + ';'
+        return sql
+
+    @property
+    def sql(self):
+        sql = self._build_sql(self._table, self._fields, self._distinct)
+        return sql
+
+
+class SQLiteWhereSQLStmt(BaseSQLiteQueryBuilder):
+
+    def __init__(self, partial_sql, partial_values, partial_dict, *args):
+        self._args = args
+        self._partial_sql = partial_sql
+        self._partial_values = partial_values
+        self._partial_dict = partial_dict
+
+    def _build_sql(self, *args):
+        where_sql = ' WHERE {query}'
+
+        query, operators, values = [], [], []
+        for d in args:
+            field = d['field']
+            operator = d['operand']
+            value = d['value']
+            query.append(f"{field} {operator} ?")
+            values.append(value)
+
+        sql, values = self._join_partial_sqls(
+            self._partial_sql,
+            where_sql.format(query=' AND '.join(query)),
+            values
+        )
+        self._set_partials(sql, values, self._args)
+        sql = sql + ';'
+        return sql, values
+
+    @property
+    def sql(self):
+        sql, values = self._build_sql(*self._args)
+        return sql, values
+
+
+class SQLiteLimitSQLStmt(BaseSQLiteQueryBuilder):
+
+    def __init__(self, partial_sql, partial_values, partial_dict, value):
+        self._partial_sql = partial_sql
+        self._partial_values = partial_values
+        self._partial_dict = partial_dict
+        self._value = value
+
+    def _build_sql(self, value):
+        sql = ' {limit} {value} '.format(limit=_config.DBMAPPER.LIMIT, value=value)
+        self._set_partials(sql)
+        sql = sql + ';'
+        return sql
+
+    @property
+    def sql(self):
+        return self._build_sql(self._value)
+
+
+class SQLiteBulkUpdateSQLStmt(BaseSQLiteQueryBuilder):
+
+    def __init__(self, partial_sql, partial_values, partial_dict, table_name, builder, **kwargs):
+        self._partial_sql = partial_sql
+        self._partial_values = partial_values
+        self._partial_dict = partial_dict
+        self._table_name = table_name
+        self._kwargs = kwargs
+        self._builder = builder
+
+    def _build_sql(self, table_name, **kwargs):
+        update_sql = 'UPDATE {table} SET {placeholders}'
+
+        placeholders, values = [], []
+
+        for key, val in kwargs.items():
+            placeholders.append(f"{key}=?")
+            values.append(val)
+
+        sql = update_sql.format(table=table_name, placeholders=', '.join(placeholders))
+
+        if self._partial_values and self._partial_dict:
+            self._set_partials(sql, values, self._partial_dict)
+            self._builder._set_partials(self)
+            sql, _values = self._builder.where(*self._partial_dict)
+            values += _values
+
+        return sql, values
+
+    @property
+    def sql(self):
+        sql, values = self._build_sql(self._table_name, **self._kwargs)
+        return sql, values
+
+
 ####################################################
 #       DATABASE MAPPER
 ####################################################
@@ -378,9 +602,10 @@ class BaseSQLDbMapper(BaseDbMapper):
     def _render_limit_sql_stmt(self, value):
         pass
 
-    __interim_sql__ = None
-    __interim_values__ = None
+    __partial_sql__ = None
+    __partial_values__ = None
     __sql_dict__ = None
+    __query_builder__ = None
 
 
 class SQLiteDbMapper(BaseSQLDbMapper):
@@ -394,102 +619,43 @@ class SQLiteDbMapper(BaseSQLDbMapper):
     DATEFIELD = "DATE"
     DATETIMEFIELD = "DATETIME"
     FOREIGNKEYFIELD = "INTEGER"
-
-    def _join_sql_stmt(self, *statements, values=None):
-        stmts = ''
-        for stmt in statements:
-            stmts += stmt
-        self.__interim_sql__ = stmts
-        self.__interim_values__ = values
-        return self.__interim_sql__, self.__interim_values__
-
-    def _render_sql_stmt(self, *statements, values=None):
-        sql, values = self._join_sql_stmt(*statements, values=values)
-        sql = sql + ';'
-        return sql, values
+    __query_builder__ = SQLiteQueryBuilder()
 
     def _render_foreign_key_sql_stmt(self, model, field_name, on_field, on_delete='CASCADE', on_update='CASCADE'):
-        sql = f"""
-            FOREIGN KEY ({field_name})
-            REFERENCES {model} ({on_field}) 
-                ON UPDATE {on_update}
-                ON DELETE {on_delete}
-        """
-        return sql
+        stmt = SQLiteForeignKeySQLStmt(model, field_name, on_field, on_delete, on_update)
+        return stmt.sql
 
     def _render_field_sql_stmt(self, type_, max_length=None, null=True, unique=False, default=None):
-        sql = f'{type_}'
-        if max_length:
-            sql = sql + f' ({max_length})'
-        if null is False:
-            sql = sql + ' NOT NULL'
-        if unique:
-            sql = sql + ' UNIQUE'
-        if default is False or default:
-            sql = sql + f' DEFAULT {default}'
-        return sql
+        stmt = SQLiteFieldSQLStmt(type_, max_length, null, unique, default)
+        return stmt.sql
 
     def _render_create_table_sql_stmt(self, table_name, **kwargs):
-        sql = SQLiteCreateTableSQLStmt(table_name, **kwargs).sql
-        return sql
+        stmt = SQLiteCreateTableSQLStmt(table_name, **kwargs)
+        return stmt.sql
 
     def _render_insert_sql_stmt(self, table_name, **kwargs):
-        sql, values = SQLiteInsertSQLStmt(table_name, **kwargs).sql
-        return sql, values
+        stmt = SQLiteInsertSQLStmt(table_name, **kwargs)
+        return stmt.sql
 
     def _render_update_sql_stmt(self, table_name, pk, pk_field, **kwargs):
-        sql, values = SQLiteUpdateSQLStmt(table_name, pk, pk_field, **kwargs).sql
-        return sql, values
-
-    def _render_bulk_update_sql_stmt(self, table_name, **kwargs):
-        update_sql = 'UPDATE {table} SET {placeholders}'
-
-        placeholders, values = [], []
-
-        for key, val in kwargs.items():
-            placeholders.append(f"{key}=?")
-            values.append(val)
-
-        sql = update_sql.format(table=table_name, placeholders=', '.join(placeholders))
-        values = values
-
-        if self.__interim_values__ and self.__sql_dict__:
-            self.__interim_sql__ = sql
-            sql, _values = self._render_select_where_sql_stmt(*self.__sql_dict__)
-            values += _values
-
-        return sql, values
+        stmt = SQLiteUpdateSQLStmt(table_name, pk, pk_field, **kwargs)
+        return stmt.sql
 
     def _render_delete_sql_stmt(self, table_name, **kwargs):
-        sql, values = SQLiteDeleteSQLStmt(table_name, **kwargs).sql
-        return sql, values
+        stmt = SQLiteDeleteSQLStmt(table_name, **kwargs)
+        return stmt.sql
 
     def _render_select_sql_stmt(self, table, fields, distinct=False):
-        select_sql = 'SELECT {distinct} {fields} FROM {table}'
-        sql = select_sql.format(
-            table=table,
-            fields=', '.join(fields),
-            distinct=self.DISTINCT if distinct else ''
-        )
-        return self._render_sql_stmt(sql)
+        return self.__query_builder__.select(table, fields, distinct)
 
     def _render_select_where_sql_stmt(self, *args):
-        where_sql = ' WHERE {query}'
-        self.__sql_dict__ = args
+        return self.__query_builder__.where(*args)
 
-        query, operators, values = [], [], []
-        for d in args:
-            field = d['field']
-            operator = d['operand']
-            value = d['value']
-            query.append(f"{field} {operator} ?")
-            values.append(value)
-
-        return self._render_sql_stmt(self.__interim_sql__, where_sql.format(query=' AND '.join(query)), values=values)
+    def _render_bulk_update_sql_stmt(self, table_name, **kwargs):
+        self.__query_builder__.bulk_update(table_name, self.__query_builder__, **kwargs)
 
     def _render_limit_sql_stmt(self, value):
-        limit_sql = ' {limit} {value} '.format(limit=self.LIMIT, value=value)
-        return self._render_sql_stmt(self.__interim_sql__, limit_sql, values=self.__interim_values__)
+        return self.__query_builder__.limit(value)
 
 
 ###################################################
@@ -751,7 +917,7 @@ class Query(BaseQuery):
     def select(cls, table, fields, distinct=False):
         db = _config.DATABASE
         mapper = _config.DBMAPPER
-        sql, _ = mapper._render_select_sql_stmt(table, fields, distinct=distinct)
+        sql = mapper._render_select_sql_stmt(table, fields, distinct=distinct)
         try:
             data = db.fetchall(sql)
             klass = cls(data, table, fields)
@@ -979,8 +1145,8 @@ class Model(metaclass=SQLModelBaseMetaClass):
             if cls._meta.create_table:
                 cls.objects._create_table()
 
-    def __getattribute__(self, item):
-        mappings = object.__getattribute__(self, '__mappings__')
-        if item in mappings:
-            return mappings[item]
-        return object.__getattribute__(self, item)
+    def __getattr__(self, item):
+        try:
+            return self.__mappings__[item]
+        except KeyError:
+            raise AttributeError(item)
