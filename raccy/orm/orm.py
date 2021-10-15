@@ -18,6 +18,7 @@ import pathlib
 import os
 import json
 from textwrap import dedent
+from typing import Iterator
 
 from raccy.core.meta import SingletonMeta
 from raccy.core.exceptions import (
@@ -492,10 +493,15 @@ class SQLiteLimitSQLStmt(BaseSQLiteQueryBuilder):
         self._value = value
 
     def _build_sql(self, value):
-        sql = ' {limit} {value} '.format(limit=_config.DBMAPPER.LIMIT, value=value)
+        limit_sql = ' {limit} {value} '.format(limit=_config.DBMAPPER.LIMIT, value=value)
+        sql, values = self._join_partial_sqls(
+            self._partial_sql,
+            limit_sql,
+            values=self._partial_values
+        )
         self._set_partials(sql)
         sql = sql + ';'
-        return self._clean_stmt(sql)
+        return self._clean_stmt(sql), values
 
     @property
     def sql(self):
@@ -609,9 +615,6 @@ class BaseSQLDbMapper(BaseDbMapper):
     def _render_limit_sql_stmt(self, value):
         pass
 
-    __partial_sql__ = None
-    __partial_values__ = None
-    __sql_dict__ = None
     __query_builder__ = None
 
 
@@ -901,6 +904,25 @@ class QuerySet(BaseQuery):
     """Query class for simple queries"""
 
     def update(self, **kwargs):
+        """
+        Updates a row in a database.
+        Example:
+        >>>from raccy import model
+        >>>
+        >>>config = model.Config()
+        >>>config.DATABASE = model.SQLiteDatabase('db.sqlite3')
+        >>>
+        >>> class Post(model.Model):
+        ...     post = model.TextField()
+        ...
+        >>> Post.objects.insert(post='this is a post')
+        1
+        >>>post = Post.objects.get(pk=1)
+        >>>post.update(post='this is the post update')
+        >>>updated_post = Post.objects.get(pk=1)
+        >>>updated_post.post
+        'this is the post update'
+        """
         sql, values = self._mapper._render_update_sql_stmt(self._table, self.pk, self._pk_field, **kwargs)
         self._db.execute(sql, values)
         self._db.commit()
@@ -924,6 +946,24 @@ class Query(BaseQuery):
 
     @classmethod
     def select(cls, table, fields, distinct=False):
+        """
+        Equivalent to SELECT statement in SQL. Selects field(s) / column(s) from a database.
+        If distinct argument is set to True, unique rows are selected using the DISTINCT clause
+        Example:
+        >>>from raccy import model
+        >>>
+        >>>config = model.Config()
+        >>>config.DATABASE = model.SQLiteDatabase('db.sqlite3')
+        >>>
+        >>>class Dog(model.Model):
+        ...    breed = model.CharField()
+        ...
+        >>>Dog.objects.create(breed='Bull dog')
+        1
+        >>>q = Dog.objects.select(['*'])
+        >>>q.get_data
+        [('Bull dog', 1)]
+        """
         db = _config.DATABASE
         mapper = _config.DBMAPPER
         sql = mapper._render_select_sql_stmt(table, fields, distinct=distinct)
@@ -943,6 +983,41 @@ class Query(BaseQuery):
         self.__state = state
 
     def where(self, *args):
+        """
+        Equivalent to filtering with WHERE in SQL. Filter rows of a result set using various conditions
+        NB: select method must be called before this method.
+        Example:
+        >>>from raccy import model
+        >>>from datetime import datetime as dt
+        >>>
+        >>>config = model.Config()
+        >>>config.DATABASE = model.SQLiteDatabase('db.sqlite3')
+        >>>
+        >>>class Author(model.Model):
+        ...    author_id = model.PrimaryKeyField()
+        ...    name = model.CharField(max_length=75)
+        ...    age = model.IntegerField()
+        ...    lucky_number = model.IntegerField(default=90)
+        ...    salary = model.FloatField(default=50000)
+        ...    date = model.DateField()
+        ...    datetime = model.DateTimeField()
+        ...    adult = model.BooleanField(default=False)
+        ...
+        >>>Author.objects.bulk_insert(
+        ...    dict(name='Kwame', age=45, date=dt.now().date(), datetime=dt.now(), lucky_number=99, salary=6400),
+        ...    dict(name='Yaw', age=32, date=dt.now().date(), datetime=dt.now(), lucky_number=56, salary=6400),
+        ...    dict(name='Fiifi', age=23, date=dt.now().date(), datetime=dt.now(), lucky_number=34),
+        ...    dict(name='Navas', age=21, date=dt.now().date(), datetime=dt.now()),
+        ...    dict(name='Jesus', age=34, date=dt.now().date(), datetime=dt.now(), salary=6400, adult=True)
+        ... )
+        >>>authors = Author.objects.select(['name', 'age'])
+        >>>authors_with_high_lucky_number = authors.where(Author.lucky_number >= 90)
+        >>>for author in authors_with_high_lucky_number.get_data:
+        ...    print(author.name)
+        ...
+        Kwame
+        Navas
+        """
         if self.__state != 'select':
             raise QueryError(f"{self._table}: select method must be called before where method!")
 
@@ -956,8 +1031,40 @@ class Query(BaseQuery):
         return klass
 
     def limit(self, value):
-        sql, values = self._mapper._render_limit_sql_stmt(value)
+        """
+        Constrain the number of rows returned by a query.
+        Example:
+        >>>from raccy import model
+        >>>from datetime import datetime as dt
+        >>>
+        >>>config = model.Config()
+        >>>config.DATABASE = model.SQLiteDatabase('db.sqlite3')
+        >>>
+        >>>class Author(model.Model):
+        ...    author_id = model.PrimaryKeyField()
+        ...    name = model.CharField(max_length=75)
+        ...    age = model.IntegerField()
+        ...    lucky_number = model.IntegerField(default=90)
+        ...    salary = model.FloatField(default=50000)
+        ...    date = model.DateField()
+        ...    datetime = model.DateTimeField()
+        ...    adult = model.BooleanField(default=False)
+        ...
+        >>>Author.objects.bulk_insert(
+        ...    dict(name='Kwame', age=45, date=dt.now().date(), datetime=dt.now(), lucky_number=99, salary=6400),
+        ...    dict(name='Yaw', age=32, date=dt.now().date(), datetime=dt.now(), lucky_number=56, salary=6400),
+        ...    dict(name='Fiifi', age=23, date=dt.now().date(), datetime=dt.now(), lucky_number=34),
+        ...    dict(name='Navas', age=21, date=dt.now().date(), datetime=dt.now()),
+        ...    dict(name='Jesus', age=34, date=dt.now().date(), datetime=dt.now(), salary=6400, adult=True)
+        ... )
+        >>>qs = Author.objects.select(['name', 'age', 'lucky_number']).limit(2)
+        >>>print(qs.get_data)
+        [('Kwame', 45, 99), ('Yaw', 32, 56)]
+        """
+        if self.__state not in ('select', 'where'):
+            raise QueryError(f"{self._table}: select or where method must be called before limit method!")
 
+        sql, values = self._mapper._render_limit_sql_stmt(value)
         if values:
             data = self._db.fetchall(sql, values)
         else:
@@ -965,6 +1072,45 @@ class Query(BaseQuery):
         return self._from_query(data, self._table)
 
     def bulk_update(self, **kwargs):
+        """
+        Update existing rows in a database.
+        NB: select method must be called before this method.
+        Example:
+        >>>from raccy import model
+        >>>from datetime import datetime as dt
+        >>>
+        >>>config = model.Config()
+        >>>config.DATABASE = model.SQLiteDatabase('db.sqlite3')
+        >>>
+        >>>class Author(model.Model):
+        ...    author_id = model.PrimaryKeyField()
+        ...    name = model.CharField(max_length=75)
+        ...    age = model.IntegerField()
+        ...    lucky_number = model.IntegerField(default=90)
+        ...    salary = model.FloatField(default=50000)
+        ...    date = model.DateField()
+        ...    datetime = model.DateTimeField()
+        ...    adult = model.BooleanField(default=False)
+        ...
+        >>>Author.objects.bulk_insert(
+        ...    dict(name='Kwame', age=45, date=dt.now().date(), datetime=dt.now(), lucky_number=99, salary=6400),
+        ...    dict(name='Yaw', age=32, date=dt.now().date(), datetime=dt.now(), lucky_number=56, salary=6400),
+        ...    dict(name='Fiifi', age=23, date=dt.now().date(), datetime=dt.now(), lucky_number=34),
+        ...    dict(name='Navas', age=21, date=dt.now().date(), datetime=dt.now()),
+        ...    dict(name='Jesus', age=34, date=dt.now().date(), datetime=dt.now(), salary=6400, adult=True)
+        ... )
+        >>>qs = Author.objects.select(['*']).where(Author.lucky_number >= 90)
+        >>>qs.bulk_update(lucky_number=100)
+        >>>all_authors = Author.objects.all()
+        >>>for author in all_authors:
+        ...    print(author.name, author.lucky_number)
+        ...
+        Kwame 100
+        Yaw 56
+        Fiifi 34
+        Navas 100
+        Jesus 100
+        """
         if self.__state not in ('select', 'where'):
             raise QueryError(f"{self._table}: select or where method must be called before bulk_update method!")
 
@@ -990,15 +1136,51 @@ class SQLModelManager(BaseDbManager):
         self._mapper = _config.DBMAPPER
 
     @property
-    def table_name(self):
+    def table_name(self) -> str:
         return self._model.__table_name__
 
     @property
-    def _table_fields(self):
+    def _table_fields(self) -> list:
         fields = [x[0] for x in self._mapping.items()]
         return fields
 
-    def all(self):
+    def all(self) -> Iterator:
+        """
+        Select all data / rows in a database.
+        Example:
+        >>>from raccy import model
+        >>>from datetime import datetime as dt
+        >>>
+        >>>config = model.Config()
+        >>>config.DATABASE = model.SQLiteDatabase('db.sqlite3')
+        >>>
+        >>>class Author(model.Model):
+        ...    author_id = model.PrimaryKeyField()
+        ...    name = model.CharField(max_length=75)
+        ...    age = model.IntegerField()
+        ...    lucky_number = model.IntegerField(default=90)
+        ...    salary = model.FloatField(default=50000)
+        ...    date = model.DateField()
+        ...    datetime = model.DateTimeField()
+        ...    adult = model.BooleanField(default=False)
+        ...
+        >>>Author.objects.bulk_insert(
+        ...    dict(name='Kwame', age=45, date=dt.now().date(), datetime=dt.now(), lucky_number=99, salary=6400),
+        ...    dict(name='Yaw', age=32, date=dt.now().date(), datetime=dt.now(), lucky_number=56, salary=6400),
+        ...    dict(name='Fiifi', age=23, date=dt.now().date(), datetime=dt.now(), lucky_number=34),
+        ...    dict(name='Navas', age=21, date=dt.now().date(), datetime=dt.now()),
+        ...    dict(name='Jesus', age=34, date=dt.now().date(), datetime=dt.now(), salary=6400, adult=True)
+        ... )
+        >>>all_authors = Author.objects.all()
+        >>>for author in all_authors:
+        ...    print(author.name)
+        ...
+        Kwame
+        Yaw
+        Fiifi
+        Navas
+        Jesus
+        """
         table_fields = self._table_fields
         pk_field = self._get_primary_key_field()
         pk_idx = table_fields.index(pk_field)
@@ -1006,20 +1188,34 @@ class SQLModelManager(BaseDbManager):
         datas = map(lambda x: self.get(**{pk_field: x[pk_idx]}), qs)
         return datas
 
-    def _create_table(self, commit=True):
+    def _create_table(self, commit=True) -> None:
         sql = self._mapper._render_create_table_sql_stmt(self.table_name, **self._mapping)
         if sql is not None:
             self._db.executescript(sql)
             if commit:
                 self._db.commit()
 
-    def _get_primary_key_field(self):
+    def _get_primary_key_field(self) -> str:
         return self._model.__pk__
 
-    def create(self, **kwargs):
+    def create(self, **kwargs) -> int:
         return self.insert(**kwargs)
 
-    def insert(self, **kwargs):
+    def insert(self, **kwargs) -> int:
+        """
+        Inserts data / row into a database
+        Example:
+        >>>from raccy import model
+        >>>
+        >>>config = model.Config()
+        >>>config.DATABASE = model.SQLiteDatabase('db.sqlite3')
+        >>>
+        >>> class Post(model.Model):
+        ...     post = model.TextField()
+        ...
+        >>> Post.objects.insert(post='this is a post')
+        1
+        """
         try:
             sql, values = self._mapper._render_insert_sql_stmt(self.table_name, **kwargs)
             lastrowid = self._db.exec_lastrowid(sql, values)
@@ -1028,20 +1224,90 @@ class SQLModelManager(BaseDbManager):
             raise InsertError(str(e))
         return lastrowid
 
-    def bulk_insert(self, *data):
+    def bulk_insert(self, *data) -> None:
+        """
+        Inserts bulk data / rows into a database, this is recommended if you are inserting bulk
+        data into the database. Data must be an instance of dict.
+        Example:
+        >>>from raccy import model
+        >>>from datetime import datetime as dt
+        >>>
+        >>>config = model.Config()
+        >>>config.DATABASE = model.SQLiteDatabase('db.sqlite3')
+        >>>
+        >>>class Author(model.Model):
+        ...    author_id = model.PrimaryKeyField()
+        ...    name = model.CharField(max_length=75)
+        ...    age = model.IntegerField()
+        ...    lucky_number = model.IntegerField(default=90)
+        ...    salary = model.FloatField(default=50000)
+        ...    date = model.DateField()
+        ...    datetime = model.DateTimeField()
+        ...    adult = model.BooleanField(default=False)
+        ...
+        >>>Author.objects.bulk_insert(
+        ...    dict(name='Kwame', age=45, date=dt.now().date(), datetime=dt.now(), lucky_number=99, salary=6400),
+        ...    dict(name='Yaw', age=32, date=dt.now().date(), datetime=dt.now(), lucky_number=56, salary=6400),
+        ...    dict(name='Fiifi', age=23, date=dt.now().date(), datetime=dt.now(), lucky_number=34),
+        ...    dict(name='Navas', age=21, date=dt.now().date(), datetime=dt.now()),
+        ...    dict(name='Jesus', age=34, date=dt.now().date(), datetime=dt.now(), salary=6400, adult=True)
+        ... )
+        >>>
+        """
         for d in data:
             if not isinstance(d, dict):
-                raise InsertError(f"bulk_insert accepts only dictionary values!")
+                raise InsertError(f"{self.__class__.__name__}.bulk_insert accepts only dictionary values!")
             sql, values = self._mapper._render_insert_sql_stmt(self.table_name, **d)
             self._db.execute(sql, values)
         self._db.commit()
 
-    def delete(self, **kwargs):
+    def delete(self, **kwargs) -> None:
+        """
+        Deletes data / row from a database
+        Example:
+        >>>from raccy import model
+        >>>
+        >>>config = model.Config()
+        >>>config.DATABASE = model.SQLiteDatabase('db.sqlite3')
+        >>>
+        >>>class Dog(model.Model):
+        ...    breed = model.CharField()
+        ...
+        >>>Dog.objects.create(breed='Bull dog')
+        1
+        >>>Dog.objects.create(breed='Red dog')
+        2
+        >>>red_dog = Dog.objects.get(pk=2)
+        >>>red_dog.delete()
+        >>>
+        """
         sql, values = self._mapper._render_delete_sql_stmt(self.table_name, **kwargs)
         self._db.execute(sql, values)
         self._db.commit()
 
-    def get(self, **kwargs):
+    def get(self, **kwargs) -> QuerySet:
+        """
+        Retrieve single row of data from a database.
+        Example:
+        >>>from raccy import model
+        >>>
+        >>>config = model.Config()
+        >>>config.DATABASE = model.SQLiteDatabase('db.sqlite3')
+        >>>
+        >>>class Dog(model.Model):
+        ...    breed = model.CharField()
+        ...
+        >>>Dog.objects.create(breed='Bull dog')
+        1
+        >>>Dog.objects.create(breed='Red dog')
+        2
+        >>>red_dog = Dog.objects.get(pk=2)
+        >>>red_dog.pk
+        2
+        >>>red_dog.breed
+        'Red dog'
+        >>>
+        """
         args = []
         for key, val in kwargs.items():
             sql_dict = render_sql_dict(key, '=', val)
@@ -1063,10 +1329,46 @@ class SQLModelManager(BaseDbManager):
 
         return query_class
 
-    def select(self, fields, distinct=False):
+    def select(self, fields, distinct=False) -> Query:
+        """
+        Equivalent to SELECT statement in SQL. Selects field(s) / column(s) from a database.
+        If distinct argument is set to True, unique rows are selected using the DISTINCT clause
+        Example:
+        >>>from raccy import model
+        >>>
+        >>>config = model.Config()
+        >>>config.DATABASE = model.SQLiteDatabase('db.sqlite3')
+        >>>
+        >>>class Dog(model.Model):
+        ...    breed = model.CharField()
+        ...
+        >>>Dog.objects.create(breed='Bull dog')
+        1
+        >>>q = Dog.objects.select(['*'])
+        >>>q.get_data
+        [('Bull dog', 1)]
+        """
         return Query.select(self.table_name, fields, distinct=distinct)
 
     def raw(self, *args, **kwargs):
+        """
+        Executes raw sql.
+        Example:
+        >>>from raccy import model
+        >>>
+        >>>config = model.Config()
+        >>>config.DATABASE = model.SQLiteDatabase('db.sqlite3')
+        >>>
+        >>>class Dog(model.Model):
+        ...    breed = model.CharField()
+        ...
+        >>>Dog.objects.create(breed='Bull dog')
+        1
+        >>>sql = "SELECT * FROM dog"
+        >>>qs = Dog.objects.raw(sql)
+        >>>qs.fetchall()
+        [('Bull dog', 1)]
+        """
         return self._db.execute(*args, **kwargs)
 
 
