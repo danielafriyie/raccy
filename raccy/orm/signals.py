@@ -16,11 +16,16 @@ limitations under the License.
 from raccy.core.signals import Signal
 
 
-class ModelPostSaveSignal(Signal):
+class BaseModelSignal(Signal):
+    """Base class for all model signals"""
+    event_name = None
 
-    def notify(self, row_id, model):
-        instance = model.objects.get(pk=row_id)
+
+class ModelSignal(BaseModelSignal):
+    event_name = 'after_insert'
+
+    def notify(self, instance):
         self._dispatch(instance)
 
 
-post_save = ModelPostSaveSignal()
+after_insert = ModelSignal()

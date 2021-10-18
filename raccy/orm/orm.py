@@ -1128,7 +1128,7 @@ class SQLModelManager(BaseDbManager):
         self._mapping = model.__mappings__
         self._db = _config.DATABASE
         self._mapper = _config.DBMAPPER
-        self._signals = []
+        self._signals = {}
 
     @property
     def signals(self):
@@ -1146,10 +1146,11 @@ class SQLModelManager(BaseDbManager):
     def register_signal(self, signal):
         if not isinstance(signal, Signal):
             raise SignalException(f"{self.__class__.__name__}: {signal} is not an instance of {Signal}")
-        self._signals.append(signal)
+        self._signals[signal.event_name] = signal
 
-    def _notify_observers(self, *args, **kwargs):
-        for signal in self._signals:
+    def _notify_observers(self, event_name, *args, **kwargs):
+        signal = self._signals.get(event_name, None)
+        if signal:
             signal.notify(*args, **kwargs)
 
     def all(self) -> Iterator:
@@ -1230,7 +1231,9 @@ class SQLModelManager(BaseDbManager):
             self._db.commit()
         except sq.OperationalError as e:
             raise InsertError(str(e))
-        self._notify_observers(lastrowid, self._model)
+
+        instance = self.get(**{self._get_primary_key_field(): lastrowid})
+        self._notify_observers('after_insert', instance)
         return lastrowid
 
     def bulk_insert(self, *data) -> None:
