@@ -2,6 +2,10 @@
 
 Track changes in raccy versions and releases.
 
+### 1.3.0
+- Refactored `worker.py` module
+- Added workers manager class
+
 ### 1.2.6
 
 - Refactored `UrlDownloaderWorker`
