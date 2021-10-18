@@ -37,6 +37,67 @@ class CrawlerMixin:
         close_driver(self.driver, self.log)
 
 
+################################
+#       WORKERS MANAGER
+################################
+class Manager(metaclass=SingletonMeta):
+    """
+    Manager class for crawler workers
+    """
+
+    def __init__(self):
+        self._workers = {}
+
+    def add_driver(self, driver):
+        self._driver = driver
+
+    def register_worker(self, name, worker):
+        self._workers[name] = worker
+
+    @property
+    def workers(self):
+        return self._workers
+
+    @property
+    def url_downloader(self):
+        return self._workers['uw']
+
+    @property
+    def crawler(self):
+        return self._workers['cw']
+
+    @property
+    def db_worker(self):
+        return self._workers['dw']
+
+    def start(self, n=5, wait=True):
+        """
+        n: number of crawler workers to instantiate
+        wait: if true, waits till all workers is done
+        """
+        wks = []
+        uw = self.url_downloader
+        cw = self.crawler
+        dw = self.db_worker
+
+        url_dwn = uw(driver=self._driver())
+        url_dwn.start()
+        wks.append(url_dwn)
+
+        for _ in range(n):
+            crawler = cw(driver=self._driver())
+            crawler.start()
+            wks.append(crawler)
+
+        db = dw()
+        db.start()
+        wks.append(db)
+
+        if wait:
+            for wk in wks:
+                wk.join()
+
+
 ###############################
 #       WORKERS
 ###############################
@@ -45,6 +106,7 @@ class BaseWorker(Thread):
     Base class for all workers
     """
     log = logger()
+    _manager = Manager()
 
     def pre_job(self):
         """
@@ -112,6 +174,9 @@ class UrlDownloaderWorker(BaseCrawlerWorker, metaclass=SingletonMeta):
     urls_scraped = 1
     max_url_download = -1
 
+    def __init_subclass__(cls, **kwargs):
+        cls._manager.register_worker('uw', cls)
+
     def __init__(self, driver: WebDriver, *args, **kwargs):
         super().__init__(driver, *args, **kwargs)
 
@@ -150,6 +215,9 @@ class CrawlerWorker(BaseCrawlerWorker):
     url_queue: ItemUrlQueue = ItemUrlQueue()
     db_queue: DatabaseQueue = DatabaseQueue()
 
+    def __init_subclass__(cls, **kwargs):
+        cls._manager.register_worker('cw', cls)
+
     def download_image(self, url, save_path):
         return download_image(url, save_path, self.mutex)
 
@@ -175,6 +243,9 @@ class DatabaseWorker(BaseWorker, metaclass=SingletonMeta):
     """
     data_wait_timeout: Optional[int] = 10
     db_queue: DatabaseQueue = DatabaseQueue()
+
+    def __init_subclass__(cls, **kwargs):
+        cls._manager.register_worker('dw', cls)
 
     def save(self, data: dict) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.save() method is not implemented!")
