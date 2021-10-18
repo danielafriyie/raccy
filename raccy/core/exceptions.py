@@ -26,6 +26,13 @@ class ImproperlyConfigured(ExceptionBase):
     pass
 
 
+#######################################
+#       SIGNAL EXCEPTIONS
+######################################
+class SignalException(ExceptionBase):
+    pass
+
+
 ########################################
 #       ORM EXCEPTIONS
 #######################################

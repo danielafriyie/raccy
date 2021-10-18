@@ -21,8 +21,11 @@ from textwrap import dedent
 from typing import Iterator
 
 from raccy.core.meta import SingletonMeta
+from raccy.core.utils import abstractmethod
+from raccy.core.signals import Signal
 from raccy.core.exceptions import (
-    ModelDoesNotExist, InsertError, QueryError, ImproperlyConfigured, DatabaseException
+    ModelDoesNotExist, InsertError, QueryError, ImproperlyConfigured, DatabaseException,
+    SignalException
 )
 from raccy.utils.utils import check_path_exists
 from raccy.logger.logger import logger as _logger
@@ -49,15 +52,6 @@ def table_exists(table):
     db = _config.DATABASE
     tables = db.tables()
     return table in tables
-
-
-def abstractmethod(func):
-    """A decorator indicating a method is abstract method"""
-
-    def wrap(self, *args, **kwargs):
-        raise NotImplementedError(f"{self.__class__.__name__}.{func.__name__} is not implemented!")
-
-    return wrap
 
 
 #################################################
@@ -1134,6 +1128,11 @@ class SQLModelManager(BaseDbManager):
         self._mapping = model.__mappings__
         self._db = _config.DATABASE
         self._mapper = _config.DBMAPPER
+        self._signals = []
+
+    @property
+    def signals(self):
+        return self._signals
 
     @property
     def table_name(self) -> str:
@@ -1143,6 +1142,15 @@ class SQLModelManager(BaseDbManager):
     def _table_fields(self) -> list:
         fields = [x[0] for x in self._mapping.items()]
         return fields
+
+    def register_signal(self, signal):
+        if not isinstance(signal, Signal):
+            raise SignalException(f"{self.__class__.__name__}: {signal} is not an instance of {Signal}")
+        self._signals.append(signal)
+
+    def _notify_observers(self, *args, **kwargs):
+        for signal in self._signals:
+            signal.notify(*args, **kwargs)
 
     def all(self) -> Iterator:
         """
@@ -1222,6 +1230,7 @@ class SQLModelManager(BaseDbManager):
             self._db.commit()
         except sq.OperationalError as e:
             raise InsertError(str(e))
+        self._notify_observers(lastrowid, self._model)
         return lastrowid
 
     def bulk_insert(self, *data) -> None:
@@ -1309,6 +1318,10 @@ class SQLModelManager(BaseDbManager):
         >>>
         """
         args = []
+        if 'pk' in kwargs:
+            pk = kwargs.pop('pk')
+            sd = render_sql_dict(self._get_primary_key_field(), '=', pk)
+            args.append(sd)
         for key, val in kwargs.items():
             sql_dict = render_sql_dict(key, '=', val)
             args.append(sql_dict)
@@ -1400,6 +1413,9 @@ class SQLModelBaseMetaClass(type):
             create_table = _create_table
 
         return _Meta
+
+    def register_signal(cls, signal):
+        cls.objects.register_signal(signal)
 
     def __new__(mcs, name, base, attr):
         if base:
