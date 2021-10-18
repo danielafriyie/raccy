@@ -1,5 +1,5 @@
 from raccy import (
-    model, UrlDownloaderWorker, CrawlerWorker, DatabaseWorker
+    model, UrlDownloaderWorker, CrawlerWorker, DatabaseWorker, WorkersManager
 )
 from selenium import webdriver
 from selenium.webdriver.support import expected_conditions as EC
@@ -98,21 +98,6 @@ def get_driver():
 
 
 if __name__ == '__main__':
-    workers = []
-    urldownloader = UrlDownloader(get_driver())
-    urldownloader.start()
-    workers.append(urldownloader)
-
-    for _ in range(5):
-        crawler = Crawler(get_driver())
-        crawler.start()
-        workers.append(crawler)
-
-    db = Db()
-    db.start()
-    workers.append(db)
-
-    for worker in workers:
-        worker.join()
-
-    print('Done scraping...........')
+    manager = WorkersManager()
+    manager.add_driver(get_driver)
+    manager.start()
