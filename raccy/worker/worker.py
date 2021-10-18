@@ -21,7 +21,7 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.common.exceptions import WebDriverException
 
 from raccy.core.meta import SingletonMeta
-from raccy.core.queue_ import DatabaseQueue, BaseQueue, ItemUrlQueue
+from raccy.core.queue_ import DatabaseQueue, ItemUrlQueue
 from raccy.utils.driver import close_driver, next_btn_handler, driver_wait
 from raccy.logger.logger import logger
 from raccy.core.exceptions import CrawlerException
@@ -108,7 +108,7 @@ class UrlDownloaderWorker(BaseCrawlerWorker, metaclass=SingletonMeta):
     Resonsible for downloading item(s) to be scraped urls and enqueue(s) them in ItemUrlQueue
     """
     start_url: str = None
-    url_queue: BaseQueue = ItemUrlQueue()
+    url_queue: ItemUrlQueue = ItemUrlQueue()
     urls_scraped = 1
     max_url_download = -1
 
@@ -147,8 +147,8 @@ class CrawlerWorker(BaseCrawlerWorker):
     Fetches item web pages and scrapes or extract data and enqueues the data in DatabaseQueue
     """
     url_wait_timeout: Optional[int] = 10
-    url_queue: BaseQueue = ItemUrlQueue()
-    db_queue: BaseQueue = DatabaseQueue()
+    url_queue: ItemUrlQueue = ItemUrlQueue()
+    db_queue: DatabaseQueue = DatabaseQueue()
 
     def download_image(self, url, save_path):
         return download_image(url, save_path, self.mutex)
@@ -174,7 +174,7 @@ class DatabaseWorker(BaseWorker, metaclass=SingletonMeta):
     Receives scraped data from DatabaseQueue and stores it in a persistent database
     """
     data_wait_timeout: Optional[int] = 10
-    db_queue: BaseQueue = DatabaseQueue()
+    db_queue: DatabaseQueue = DatabaseQueue()
 
     def save(self, data: dict) -> None:
         raise NotImplementedError(f"{self.__class__.__name__}.save() method is not implemented!")
