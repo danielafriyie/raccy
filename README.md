@@ -33,7 +33,7 @@ pip install raccy
 
 ```python
 from raccy import (
-    model, UrlDownloaderWorker, CrawlerWorker, DatabaseWorker
+    model, UrlDownloaderWorker, CrawlerWorker, DatabaseWorker, WorkersManager
 )
 from selenium import webdriver
 from shutil import which
@@ -91,23 +91,9 @@ def get_driver():
 
 
 if __name__ == '__main__':
-    workers = []
-    urldownloader = UrlDownloader(get_driver())
-    urldownloader.start()
-    workers.append(urldownloader)
-
-    for _ in range(5):
-        crawler = Crawler(get_driver())
-        crawler.start()
-        workers.append(crawler)
-
-    db = Db()
-    db.start()
-    workers.append(db)
-
-    for worker in workers:
-        worker.join()
-
+    manager = WorkersManager()
+    manager.add_driver(get_driver)
+    manager.start()
     print('Done scraping...........')
 
 ```
