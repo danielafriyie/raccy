@@ -23,7 +23,7 @@ from raccy.core.exceptions import (
 )
 from raccy.logger.logger import logger as _logger
 from .base import (
-    _config, BaseQuery, BaseDbManager
+    _config, BaseQuery, BaseDbManager, AttrDict
 )
 from .utils import render_sql_dict
 
@@ -450,7 +450,7 @@ class SQLModelManager(BaseDbManager):
         Jesus
         """
         table_fields = self._table_fields
-        pk_field = self._get_primary_key_field()
+        pk_field = self._primary_key_field
         pk_idx = table_fields.index(pk_field)
         qs = self.select(table_fields).get_data
         datas = map(lambda x: self.get(**{pk_field: x[pk_idx]}), qs)
@@ -463,11 +463,20 @@ class SQLModelManager(BaseDbManager):
             if commit:
                 self._db.commit()
 
-    def _get_primary_key_field(self) -> str:
+    @property
+    def _primary_key_field(self) -> str:
         return self._model.__pk__
 
     def create(self, **kwargs) -> int:
         return self.insert(**kwargs)
+
+    def mk_instance(self, **kwargs):
+        for field in self._table_fields:
+            if field not in kwargs:
+                if field != self._primary_key_field:
+                    kwargs[field] = ''
+        instance = AttrDict(**kwargs)
+        return instance
 
     def insert(self, **kwargs) -> int:
         """
@@ -484,14 +493,16 @@ class SQLModelManager(BaseDbManager):
         >>> Post.objects.insert(post='this is a post')
         1
         """
+        instance = self.mk_instance(**kwargs)
+        self._dispatch('before_insert', instance)
         try:
-            sql, values = self._mapper._render_insert_sql_stmt(self.table_name, **kwargs)
+            sql, values = self._mapper._render_insert_sql_stmt(self.table_name, **instance.attrs)
             lastrowid = self._db.exec_lastrowid(sql, values)
             self._db.commit()
         except sq.OperationalError as e:
             raise InsertError(str(e))
 
-        instance = self.get(**{self._get_primary_key_field(): lastrowid})
+        instance = self.get(**{self._primary_key_field: lastrowid})
         self._dispatch('after_insert', instance)
         return lastrowid
 
@@ -583,7 +594,7 @@ class SQLModelManager(BaseDbManager):
         args = []
         if 'pk' in kwargs:
             pk = kwargs.pop('pk')
-            sd = render_sql_dict(self._get_primary_key_field(), '=', pk)
+            sd = render_sql_dict(self._primary_key_field, '=', pk)
             args.append(sd)
         for key, val in kwargs.items():
             sql_dict = render_sql_dict(key, '=', val)
@@ -594,7 +605,7 @@ class SQLModelManager(BaseDbManager):
         try:
             query_set = qs.get_data[0]
             data = dict(zip(self._table_fields, query_set))
-            pk_field = self._get_primary_key_field()
+            pk_field = self._primary_key_field
             data['_table'] = self.table_name
             data['pk'] = data[pk_field]
             data['id'] = data[pk_field]

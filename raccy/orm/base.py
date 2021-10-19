@@ -24,6 +24,31 @@ from raccy.core.meta import SingletonMeta
 from raccy.core.exceptions import ImproperlyConfigured
 
 
+class AttrDict:
+    __slots__ = ['_attrs']
+
+    def __init__(self, **kwargs):
+        self._attrs = kwargs
+
+    @property
+    def attrs(self):
+        return self._attrs
+
+    def __getattr__(self, item):
+        try:
+            return self._attrs[item]
+        except KeyError:
+            raise AttributeError(f"'{self.__class__.__name__}' has not attribute '{item}'")
+
+    def __setattr__(self, key, value):
+        try:
+            object.__setattr__(self, key, value)
+        except AttributeError as e:
+            if key not in self._attrs:
+                raise e
+            self._attrs[key] = value
+
+
 #################################################
 #       DATABASE CONFIGURATION
 #################################################
