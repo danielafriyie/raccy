@@ -17,7 +17,7 @@ import sqlite3 as sq
 from typing import Iterator, Dict
 from functools import lru_cache
 
-from .signals import BaseModelSignal
+from .signals import ModelSignal
 from raccy.core.exceptions import (
     ModelDoesNotExist, InsertError, QueryError, SignalException
 )
@@ -384,13 +384,13 @@ class QuerySet(BaseQuery):
         """
         new = self._get_new_instance(kwargs)
         self._model.objects._dispatch('before_update', new, self)
-        new.attrs.pop(self._pk_field)
+        pk = new.attrs.pop(self._pk_field)
 
         sql, values = self._mapper._render_update_sql_stmt(self._table, self.pk, self._pk_field, **new.attrs)
         self._db.execute(sql, values)
         self._db.commit()
 
-        new = self._model.objects.get(**{self._pk_field: self.pk})
+        new.attrs[self._pk_field] = pk
         self._model.objects._dispatch('after_update', new, self)
 
 
@@ -405,7 +405,7 @@ class SQLModelManager(BaseDbManager):
         self._mapping = model.__mappings__
         self._db = _config.DATABASE
         self._mapper = _config.DBMAPPER
-        self._signals: Dict[str: BaseModelSignal] = {}
+        self._signals: Dict[str: ModelSignal] = {}
 
     @property
     def signals(self):
@@ -421,8 +421,8 @@ class SQLModelManager(BaseDbManager):
         return fields
 
     def register_signal(self, signal):
-        if not isinstance(signal, BaseModelSignal):
-            raise SignalException(f"{self.__class__.__name__}: {signal} is not an instance of {BaseModelSignal}")
+        if not isinstance(signal, ModelSignal):
+            raise SignalException(f"{self.__class__.__name__}: {signal} is not an instance of {ModelSignal}")
         self._signals[signal.signal_name] = signal
 
     def _dispatch(self, signal_name, *args, **kwargs):

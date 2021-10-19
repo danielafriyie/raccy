@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 from .exceptions import SignalException
-from .utils import abstractmethod
 
 
 def receiver(signal, sender):
@@ -42,13 +41,12 @@ class Signal:
             raise SignalException(f"{self.__class__.__name__}: dispatch or signal must be a callable!")
         self._dispatchers.append(dispatch)
 
-    @abstractmethod
     def notify(self, *args, **kwargs):
-        pass
+        self._dispatch(*args, **kwargs)
 
     def _dispatch(self, *args, **kwargs):
-        for func in self._dispatchers:
-            func(*args, **kwargs)
+        for dispatch in self._dispatchers:
+            dispatch(*args, **kwargs)
 
     def remove_dispatch(self, dispatch):
         self._dispatchers.remove(dispatch)

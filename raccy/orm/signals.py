@@ -16,18 +16,11 @@ limitations under the License.
 from raccy.core.signals import Signal
 
 
-class BaseModelSignal(Signal):
-    """Base class for all model signals"""
+class ModelSignal(Signal):
 
     def __init__(self, name):
         super().__init__()
         self.signal_name = name
-
-
-class ModelSignal(BaseModelSignal):
-
-    def notify(self, *args, **kwargs):
-        self._dispatch(*args, **kwargs)
 
 
 before_insert = ModelSignal('before_insert')
