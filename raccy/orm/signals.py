@@ -26,8 +26,8 @@ class BaseModelSignal(Signal):
 
 class ModelSignal(BaseModelSignal):
 
-    def notify(self, instance):
-        self._dispatch(instance)
+    def notify(self, *args, **kwargs):
+        self._dispatch(*args, **kwargs)
 
 
 before_insert = ModelSignal('before_insert')

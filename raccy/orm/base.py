@@ -292,7 +292,8 @@ class BaseSQLDatabase(BaseDatabase):
 class BaseQuery:
     """Base class for all query and queryset"""
 
-    def __init__(self, data):
+    def __init__(self, model, data):
+        self._model = model
         self._data = data
         self._db = _config.DATABASE
         self._mapper = _config.DBMAPPER

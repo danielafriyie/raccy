@@ -162,8 +162,8 @@ class Query(BaseQuery):
     Query class for making complex and advance queries
     """
 
-    def __init__(self, data, table, fields=None, **kwargs):
-        super().__init__(data)
+    def __init__(self, model, data, table, fields=None, **kwargs):
+        super().__init__(model, data)
         self._table = table
         self._fields = fields
         self._kwds = kwargs
@@ -174,7 +174,7 @@ class Query(BaseQuery):
         return self.__state
 
     @classmethod
-    def select(cls, table, fields, distinct=False):
+    def select(cls, model, table, fields, distinct=False):
         """
         Equivalent to SELECT statement in SQL. Selects field(s) / column(s) from a database.
         If distinct argument is set to True, unique rows are selected using the DISTINCT clause
@@ -198,15 +198,15 @@ class Query(BaseQuery):
         sql = mapper._render_select_sql_stmt(table, fields, distinct=distinct)
         try:
             data = db.fetchall(sql)
-            klass = cls(data, table, fields)
+            klass = cls(model, data, table, fields)
             klass.set_state('select')
         except sq.OperationalError as e:
             raise QueryError(str(e))
         return klass
 
     @classmethod
-    def _from_query(cls, data, table, fields=None, **kwargs):
-        return cls(data, table, fields, **kwargs)
+    def _from_query(cls, model, data, table, fields=None, **kwargs):
+        return cls(model, data, table, fields, **kwargs)
 
     def set_state(self, state):
         self.__state = state
@@ -255,7 +255,7 @@ class Query(BaseQuery):
 
         sql, values = self._mapper._render_select_where_sql_stmt(*args)
         data = self._db.fetchall(sql, values)
-        klass = self._from_query(data, self._table, self._fields)
+        klass = self._from_query(self._model, data, self._table, self._fields)
         klass.set_state('where')
         return klass
 
@@ -298,7 +298,7 @@ class Query(BaseQuery):
             data = self._db.fetchall(sql, values)
         else:
             data = self._db.fetchall(sql)
-        return self._from_query(data, self._table)
+        return self._from_query(self._model, data, self._table)
 
     def bulk_update(self, **kwargs):
         """
@@ -351,6 +351,17 @@ class Query(BaseQuery):
 class QuerySet(BaseQuery):
     """Query class for single row instance from database"""
 
+    def _get_new_instance(self, kwargs):
+        old_data = {self._pk_field: self.pk}
+        for field in self._model.objects._table_fields:
+            if field not in kwargs:
+                if field != self._pk_field:
+                    old_data[field] = getattr(self, field)
+        kwargs.update(old_data)
+        new = self._model.objects.mk_attr_dict(**kwargs)
+
+        return new
+
     def update(self, **kwargs):
         """
         Updates a row in a database.
@@ -371,9 +382,16 @@ class QuerySet(BaseQuery):
         >>>updated_post.post
         'this is the post update'
         """
-        sql, values = self._mapper._render_update_sql_stmt(self._table, self.pk, self._pk_field, **kwargs)
+        new = self._get_new_instance(kwargs)
+        self._model.objects._dispatch('before_update', new, self)
+        new.attrs.pop(self._pk_field)
+
+        sql, values = self._mapper._render_update_sql_stmt(self._table, self.pk, self._pk_field, **new.attrs)
         self._db.execute(sql, values)
         self._db.commit()
+
+        new = self._model.objects.get(**{self._pk_field: self.pk})
+        self._model.objects._dispatch('after_update', new, self)
 
 
 ####################################################
@@ -568,9 +586,15 @@ class SQLModelManager(BaseDbManager):
             pk = kwargs.pop('pk')
             pk_kwarg = {self._primary_key_field: pk}
             kwargs.update(pk_kwarg)
+
+        instance = self.get(**kwargs)
+        self._dispatch('before_delete', instance)
+
         sql, values = self._mapper._render_delete_sql_stmt(self.table_name, **kwargs)
         self._db.execute(sql, values)
         self._db.commit()
+
+        self._dispatch('after_delete', instance)
 
     @lru_cache(maxsize=1000)
     def get(self, **kwargs) -> QuerySet:
@@ -615,8 +639,10 @@ class SQLModelManager(BaseDbManager):
             data['pk'] = data[pk_field]
             data['id'] = data[pk_field]
             data['_pk_field'] = pk_field
-            query_class = QuerySet(data)
+            query_class = QuerySet(self._model, data)
         except TypeError:
+            raise ModelDoesNotExist(f"{self.table_name}: No model matches the given query!")
+        except IndexError:
             raise ModelDoesNotExist(f"{self.table_name}: No model matches the given query!")
 
         return query_class
@@ -640,7 +666,7 @@ class SQLModelManager(BaseDbManager):
         >>>q.get_data
         [('Bull dog', 1)]
         """
-        return Query.select(self.table_name, fields, distinct=distinct)
+        return Query.select(self._model, self.table_name, fields, distinct=distinct)
 
     def raw(self, *args, **kwargs):
         """
