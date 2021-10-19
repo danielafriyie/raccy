@@ -6,6 +6,7 @@ Track changes in raccy versions and releases.
 - Refactored `worker.py` module
 - Added workers manager class
 - Added signals
+- Refacored `orm` package
 
 ### 1.2.6
 
