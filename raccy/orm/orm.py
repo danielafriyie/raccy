@@ -15,6 +15,7 @@ limitations under the License.
 """
 import sqlite3 as sq
 from typing import Iterator, Dict
+from functools import lru_cache
 
 from .signals import BaseModelSignal
 from raccy.core.exceptions import (
@@ -555,6 +556,7 @@ class SQLModelManager(BaseDbManager):
         self._db.execute(sql, values)
         self._db.commit()
 
+    @lru_cache(maxsize=1000)
     def get(self, **kwargs) -> QuerySet:
         """
         Retrieve single row of data from a database.
