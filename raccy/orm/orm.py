@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 import sqlite3 as sq
-from typing import Iterator
+from typing import Iterator, Dict
 
 from .signals import BaseModelSignal
 from raccy.core.exceptions import (
@@ -386,7 +386,7 @@ class SQLModelManager(BaseDbManager):
         self._mapping = model.__mappings__
         self._db = _config.DATABASE
         self._mapper = _config.DBMAPPER
-        self._signals = {}
+        self._signals: Dict[str: BaseModelSignal] = {}
 
     @property
     def signals(self):
@@ -406,8 +406,8 @@ class SQLModelManager(BaseDbManager):
             raise SignalException(f"{self.__class__.__name__}: {signal} is not an instance of {BaseModelSignal}")
         self._signals[signal.signal_name] = signal
 
-    def _notify_observers(self, event_name, *args, **kwargs):
-        signal = self._signals.get(event_name, None)
+    def _dispatch(self, signal_name, *args, **kwargs):
+        signal = self._signals.get(signal_name, None)
         if signal:
             signal.notify(*args, **kwargs)
 
@@ -491,7 +491,7 @@ class SQLModelManager(BaseDbManager):
             raise InsertError(str(e))
 
         instance = self.get(**{self._get_primary_key_field(): lastrowid})
-        self._notify_observers('after_insert', instance)
+        self._dispatch('after_insert', instance)
         return lastrowid
 
     def bulk_insert(self, *data) -> None:
