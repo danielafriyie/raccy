@@ -30,4 +30,11 @@ class ModelSignal(BaseModelSignal):
         self._dispatch(instance)
 
 
+before_insert = ModelSignal('before_insert')
 after_insert = ModelSignal('after_insert')
+
+before_update = ModelSignal("before_update")
+after_update = ModelSignal('after_update')
+
+before_delete = ModelSignal('before_delete')
+after_delete = ModelSignal('after_delete')
