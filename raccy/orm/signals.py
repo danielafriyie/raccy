@@ -18,11 +18,11 @@ from raccy.core.signals import Signal
 
 class BaseModelSignal(Signal):
     """Base class for all model signals"""
-    event_name = None
+    signal_name = None
 
 
 class ModelSignal(BaseModelSignal):
-    event_name = 'after_insert'
+    signal_name = 'after_insert'
 
     def notify(self, instance):
         self._dispatch(instance)

@@ -13,10 +13,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+from .base import Config
+from .utils import table_exists
 from .orm import (
-    Config,
-    table_exists,
-    SQLiteDatabase,
     PrimaryKeyField,
     CharField,
     TextField,
@@ -28,3 +27,4 @@ from .orm import (
     ForeignKeyField,
     Model
 )
+from .sqlite_ import SQLiteDatabase
