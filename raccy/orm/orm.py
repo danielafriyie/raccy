@@ -561,10 +561,13 @@ class SQLModelManager(BaseDbManager):
         1
         >>>Dog.objects.create(breed='Red dog')
         2
-        >>>red_dog = Dog.objects.get(pk=2)
-        >>>red_dog.delete()
+        >>>Dog.objects.delete(pk=2)
         >>>
         """
+        if 'pk' in kwargs:
+            pk = kwargs.pop('pk')
+            pk_kwarg = {self._primary_key_field: pk}
+            kwargs.update(pk_kwarg)
         sql, values = self._mapper._render_delete_sql_stmt(self.table_name, **kwargs)
         self._db.execute(sql, values)
         self._db.commit()
