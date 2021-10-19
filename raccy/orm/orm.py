@@ -157,34 +157,6 @@ class ForeignKeyField(Field):
 #################################
 #       QUERY AND QUERYSET
 ################################
-class QuerySet(BaseQuery):
-    """Query class for simple queries"""
-
-    def update(self, **kwargs):
-        """
-        Updates a row in a database.
-        Example:
-        >>>from raccy import model
-        >>>
-        >>>config = model.Config()
-        >>>config.DATABASE = model.SQLiteDatabase('db.sqlite3')
-        >>>
-        >>> class Post(model.Model):
-        ...     post = model.TextField()
-        ...
-        >>> Post.objects.insert(post='this is a post')
-        1
-        >>>post = Post.objects.get(pk=1)
-        >>>post.update(post='this is the post update')
-        >>>updated_post = Post.objects.get(pk=1)
-        >>>updated_post.post
-        'this is the post update'
-        """
-        sql, values = self._mapper._render_update_sql_stmt(self._table, self.pk, self._pk_field, **kwargs)
-        self._db.execute(sql, values)
-        self._db.commit()
-
-
 class Query(BaseQuery):
     """
     Query class for making complex and advance queries
@@ -376,6 +348,34 @@ class Query(BaseQuery):
         self._db.commit()
 
 
+class QuerySet(BaseQuery):
+    """Query class for single row instance from database"""
+
+    def update(self, **kwargs):
+        """
+        Updates a row in a database.
+        Example:
+        >>>from raccy import model
+        >>>
+        >>>config = model.Config()
+        >>>config.DATABASE = model.SQLiteDatabase('db.sqlite3')
+        >>>
+        >>> class Post(model.Model):
+        ...     post = model.TextField()
+        ...
+        >>> Post.objects.insert(post='this is a post')
+        1
+        >>>post = Post.objects.get(pk=1)
+        >>>post.update(post='this is the post update')
+        >>>updated_post = Post.objects.get(pk=1)
+        >>>updated_post.post
+        'this is the post update'
+        """
+        sql, values = self._mapper._render_update_sql_stmt(self._table, self.pk, self._pk_field, **kwargs)
+        self._db.execute(sql, values)
+        self._db.commit()
+
+
 ####################################################
 #       MANAGER, AND MODEL CLASS
 ####################################################
@@ -470,7 +470,7 @@ class SQLModelManager(BaseDbManager):
     def create(self, **kwargs) -> int:
         return self.insert(**kwargs)
 
-    def mk_instance(self, **kwargs):
+    def mk_attr_dict(self, **kwargs):
         for field in self._table_fields:
             if field not in kwargs:
                 if field != self._primary_key_field:
@@ -493,8 +493,9 @@ class SQLModelManager(BaseDbManager):
         >>> Post.objects.insert(post='this is a post')
         1
         """
-        instance = self.mk_instance(**kwargs)
+        instance = self.mk_attr_dict(**kwargs)
         self._dispatch('before_insert', instance)
+
         try:
             sql, values = self._mapper._render_insert_sql_stmt(self.table_name, **instance.attrs)
             lastrowid = self._db.exec_lastrowid(sql, values)
@@ -504,6 +505,7 @@ class SQLModelManager(BaseDbManager):
 
         instance = self.get(**{self._primary_key_field: lastrowid})
         self._dispatch('after_insert', instance)
+
         return lastrowid
 
     def bulk_insert(self, *data) -> None:

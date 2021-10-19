@@ -38,7 +38,7 @@ class AttrDict:
         try:
             return self._attrs[item]
         except KeyError:
-            raise AttributeError(f"'{self.__class__.__name__}' has not attribute '{item}'")
+            raise AttributeError(f"'{self.__class__.__name__}' has no attribute '{item}'")
 
     def __setattr__(self, key, value):
         try:
@@ -71,6 +71,13 @@ class Config(metaclass=SingletonMeta):
 
 
 _config = Config()
+
+
+####################################################
+#        MIXINS
+####################################################
+class SignalMixin:
+    pass
 
 
 #####################################################
