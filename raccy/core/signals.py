@@ -18,7 +18,7 @@ from .exceptions import SignalException
 
 def receiver(signal, sender):
     def _decorator(func):
-        signal.register_dispatch(func)
+        signal.register_dispatch(sender, func)
         sender.register_signal(signal)
 
     return _decorator
@@ -30,23 +30,27 @@ class Signal:
     """
 
     def __init__(self):
-        self._dispatchers = []
+        self._dispatchers = {}
 
     @property
     def dispatchers(self):
         return self._dispatchers
 
-    def register_dispatch(self, dispatch):
+    def register_dispatch(self, sender, dispatch):
         if not callable(dispatch):
             raise SignalException(f"{self.__class__.__name__}: dispatch or signal must be a callable!")
-        self._dispatchers.append(dispatch)
+        try:
+            self._dispatchers[sender].append(dispatch)
+        except KeyError:
+            self._dispatchers[sender] = [dispatch]
 
-    def notify(self, *args, **kwargs):
-        self._dispatch(*args, **kwargs)
+    def notify(self, sender, *args, **kwargs):
+        self._dispatch(sender, *args, **kwargs)
 
-    def _dispatch(self, *args, **kwargs):
-        for dispatch in self._dispatchers:
+    def _dispatch(self, sender, *args, **kwargs):
+        dispatchers = self._dispatchers[sender]
+        for dispatch in dispatchers:
             dispatch(*args, **kwargs)
 
-    def remove_dispatch(self, dispatch):
-        self._dispatchers.remove(dispatch)
+    def remove_dispatch(self, sender, dispatch):
+        self._dispatchers[sender].remove(dispatch)

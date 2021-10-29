@@ -428,7 +428,7 @@ class SQLModelManager(BaseDbManager):
     def _dispatch(self, signal_name, *args, **kwargs):
         signal = self._signals.get(signal_name, None)
         if signal:
-            signal.notify(*args, **kwargs)
+            signal.notify(self._model, *args, **kwargs)
 
     def all(self) -> Iterator:
         """
