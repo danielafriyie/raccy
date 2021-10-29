@@ -48,6 +48,9 @@ class AttrDict:
                 raise e
             self._attrs[key] = value
 
+    def __repr__(self):
+        return str(self._attrs)
+
 
 #################################################
 #       DATABASE CONFIGURATION
