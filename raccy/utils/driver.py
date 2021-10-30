@@ -14,15 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 from urllib.parse import urljoin
-from typing import Union, Callable, Optional
+from typing import Callable, Optional
 from logging import Logger
 
 from selenium.common.exceptions import (
-    ElementClickInterceptedException, NoSuchElementException, NoSuchAttributeException, WebDriverException
+    ElementClickInterceptedException, NoSuchElementException, NoSuchAttributeException, WebDriverException,
+    TimeoutException
 )
-from selenium.webdriver import (
-    Chrome, Firefox, Safari, Ie, Edge, Opera
-)
+from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -30,7 +29,7 @@ from selenium.webdriver.remote.webelement import WebElement
 
 from .utils import check_has_attr
 
-Driver: Union[Chrome, Firefox, Safari, Ie, Edge, Opera] = ...
+Driver = WebDriver
 
 
 def scroll_into_view(driver: Driver, element: WebElement):
@@ -42,7 +41,11 @@ def window_scroll_to(driver: Driver, loc: int):
 
 
 def driver_wait(
-        driver: Driver, xpath: str, secs=5, condition=None, action: Optional[str] = None
+        driver: Driver,
+        xpath: str,
+        secs=5,
+        condition=None,
+        action: Optional[str] = None
 ) -> None:
     wait = WebDriverWait(driver=driver, timeout=secs)
     until = wait.until(condition((By.XPATH, xpath)))
@@ -53,7 +56,13 @@ def driver_wait(
 
 
 def follow(
-        callback: Callable, *, url: str = None, driver: Driver = None, cargs=(), ckwargs: dict = None, wait=False,
+        callback: Callable,
+        *,
+        url: str = None,
+        driver: Driver = None,
+        cargs=(),
+        ckwargs: dict = None,
+        wait=False,
         xpath: str = None, secs: int = None
 ) -> None:
     if url and driver:
@@ -63,30 +72,29 @@ def follow(
     callback(*cargs, **ckwargs)
 
 
-def close_popup_handler(driver: Driver, close_btn: str) -> None:
-    driver_wait(driver, close_btn, method='element_to_be_clickable')
+def btn_click_handler(driver: Driver, xpath: str) -> None:
     try:
-        driver.find_element_by_xpath(close_btn).click()
-    except NoSuchElementException:
-        pass
-
-
-def next_btn_handler(driver: Driver, next_btn: str) -> None:
-    try:
-        btn = driver.find_element_by_xpath(next_btn)
+        btn = driver.find_element_by_xpath(xpath)
         scroll_into_view(driver, btn)
         btn.click()
         return
     except ElementClickInterceptedException:
         try:
-            next_url = driver.find_element_by_xpath(next_btn).get_attribute('href')
-            driver.get(next_url)
+            url = driver.find_element_by_xpath(xpath).get_attribute('href')
+            driver.get(url)
             return
         except NoSuchAttributeException:
             pass
         raise
     except NoSuchElementException:
         return
+
+
+def close_popup_handler(driver: Driver, close_btn: str) -> None:
+    btn_click_handler(
+        driver,
+        close_btn
+    )
 
 
 def url_join(base: str, url: str, allow_fragments=True) -> str:
