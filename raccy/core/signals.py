@@ -37,8 +37,6 @@ class Signal:
         return self._dispatchers
 
     def register_dispatch(self, sender, dispatch):
-        if not callable(dispatch):
-            raise SignalException(f"{self.__class__.__name__}: dispatch or signal must be a callable!")
         try:
             self._dispatchers[sender].append(dispatch)
         except KeyError:
