@@ -16,7 +16,7 @@ class BaseTestClass(unittest.TestCase):
     pass
 
 
-class TestQueue(BaseTestClass):
+class TestQueueModule(BaseTestClass):
 
     @classmethod
     def setUpClass(cls):
@@ -63,6 +63,7 @@ class TestQueue(BaseTestClass):
 
         with self.assertRaises(QueueError):
             self.ds2.put(['this is an item'])
+        with self.assertRaises(QueueError):
             self.ds1.put('item')
 
     def test_different_subclass_instance(self):
@@ -89,7 +90,7 @@ class TestQueue(BaseTestClass):
         self.assertNotEqual(self.ds2.queue(), self.is2.queue())
 
 
-class TestAbstractMethod(BaseTestClass):
+class TestUtilsModule(BaseTestClass):
 
     def test_abstract_method(self):
         class Foo:
@@ -103,7 +104,7 @@ class TestAbstractMethod(BaseTestClass):
             f.bar()
 
 
-class TestSignals(BaseTestClass):
+class TestSignalsModule(BaseTestClass):
 
     @classmethod
     def setUpClass(cls):
