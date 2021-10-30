@@ -51,6 +51,19 @@ class TestConfig(BastTestClass):
     def setUpClass(cls):
         pass
 
+    def test_single_instance(self):
+        c1 = model.Config()
+        c2 = model.Config()
+
+        self.assertEqual(c1, c2)
+
+        c1.DATABASE = model.SQLiteDatabase(':memory:')
+        self.assertEqual(c1, c2)
+        self.assertEqual(c1.DATABASE, c2.DATABASE)
+        self.assertEqual(c1.DBMAPPER, c2.DBMAPPER)
+        c2.foo = 'I am fooo'
+        self.assertEqual(c2.foo, c1.foo)
+
     def test_setattr(self):
         config = model.Config()
 
@@ -74,37 +87,6 @@ class TestConfig(BastTestClass):
             config.DBMAPPER
 
 
-# class Author(model.Model):
-#     author_id = model.PrimaryKeyField()
-#     name = model.CharField(max_length=120)
-#     age = model.IntegerField()
-#
-#
-# class Post(model.Model):
-#     author_id = model.ForeignKeyField(Author, 'author_id')
-#     post = model.TextField()
-#
-#
-# class AbstractModel(model.Model):
-#     field1 = model.CharField()
-#     field2 = model.CharField()
-#
-#     class Meta:
-#         abstract = True
-#
-#
-# class TestORMConfig(unittest.TestCase):
-#
-#     def setUp(self):
-#         self.config = model.Config()
-#
-#     def test_config(self):
-#         with self.assertRaises(ImproperlyConfigured):
-#             self.config.DATABASE = 'this is database'
-#         self.assertEqual(self.config, config)
-#         self.assertEqual(self.config, model.Config())
-#
-#
 # class TestSQLiteModelFields(unittest.TestCase):
 #
 #     def _test_field(self, field, type_, sql, *field_args, **field_kwargs):
@@ -300,5 +282,7 @@ class TestConfig(BastTestClass):
 #         with self.assertRaises(QueryError):
 #             query.where(name='Test Name')
 #             query.bulk_update(name='Yaw')
+
+
 if __name__ == '__main__':
     unittest.main()
