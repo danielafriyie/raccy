@@ -17,9 +17,19 @@ from .exceptions import SignalException
 
 
 def receiver(signal, sender):
-    def _decorator(func):
-        signal.register_dispatch(sender, func)
+    def _decorator(dispatch):
+        signal.register_dispatch(sender, dispatch)
         sender.register_signal(signal)
+
+    return _decorator
+
+
+def execute_or_debug(func):
+    def _decorator(self, sender, *args, **kwargs):
+        try:
+            return func(self, sender, *args, **kwargs)
+        except:
+            raise SignalException(f"{self.__class__.__name__} has no registered dispatch <{sender}>")
 
     return _decorator
 
@@ -45,10 +55,12 @@ class Signal:
     def notify(self, sender, *args, **kwargs):
         self._dispatch(sender, *args, **kwargs)
 
+    @execute_or_debug
     def _dispatch(self, sender, *args, **kwargs):
         dispatchers = self._dispatchers[sender]
         for dispatch in dispatchers:
             dispatch(*args, **kwargs)
 
+    @execute_or_debug
     def remove_dispatch(self, sender, dispatch):
         self._dispatchers[sender].remove(dispatch)
