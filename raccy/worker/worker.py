@@ -59,26 +59,28 @@ class Manager(metaclass=SingletonMeta):
         return self._workers
 
     @property
-    def url_downloader(self):
+    def uw(self):
         return self._workers['uw']
 
     @property
-    def crawler(self):
+    def cw(self):
         return self._workers['cw']
 
     @property
-    def db_worker(self):
+    def dw(self):
         return self._workers['dw']
 
     def start(self, n=5, wait=True):
         """
         n: number of crawler workers to instantiate
-        wait: if true, waits till all workers is done
+        wait: if true, waits till all workers are done
         """
+        if not hasattr(self, '_driver'):
+            raise CrawlerException(f'{self.__class__.__name__}: driver not added!')
         wks = []
-        uw = self.url_downloader
-        cw = self.crawler
-        dw = self.db_worker
+        uw = self.uw
+        cw = self.cw
+        dw = self.dw
 
         url_dwn = uw(driver=self._driver())
         url_dwn.start()
@@ -120,7 +122,7 @@ class BaseWorker(Thread):
 
     def kill(self):
         if self.is_alive():
-            self._is_stopped = False
+            self._is_stopped = True
             self.post_job()
 
     def run(self):
