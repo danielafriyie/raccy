@@ -10,7 +10,7 @@ from raccy import model
 from raccy.orm.utils import is_abstract_model
 from raccy.core.exceptions import InsertError, QueryError, ModelDoesNotExist, ImproperlyConfigured
 from raccy.orm.base import AttrDict, BaseSQLDbMapper
-from raccy.orm.orm import Field
+from raccy.orm.orm import Field, QuerySet
 from raccy.orm.signals import before_insert, after_insert, before_update, after_update, before_delete, after_delete
 from raccy.core.signals import receiver
 
@@ -281,146 +281,70 @@ class TestModelSignals(BaseTestClass):
         self.assertEqual(self.var, 'after delete')
 
 
-# class TestModels(unittest.TestCase):
-#
-#     def test_model_meta(self):
-#         self.assertTrue(hasattr(self.author1, '__mappings__'))
-#         self.assertTrue(hasattr(self.author1, '__table_name__'))
-#         self.assertTrue(hasattr(self.author1, '_meta'))
-#         self.assertTrue(hasattr(self.author1, 'objects'))
-#         self.assertTrue(hasattr(Author, 'objects'))
-#         self.assertTrue(hasattr(self.post2, '__mappings__'))
-#         self.assertTrue(hasattr(self.post2, '__table_name__'))
-#         self.assertTrue(hasattr(self.post2, '_meta'))
-#         self.assertTrue(hasattr(self.post2, 'objects'))
-#         self.assertTrue(hasattr(Post, 'objects'))
-#         self.assertTrue(hasattr(Post, '__pk__'))
-#         self.assertTrue(hasattr(Author, '__pk__'))
-#
-#         for key in self.author1.__mappings__.keys():
-#             self.assertFalse(hasattr(self.author1, key))
-#
-#         for key in self.post2.__mappings__.keys():
-#             self.assertFalse(hasattr(self.post2, key))
-#
-#     def test_single_instance(self):
-#         self.assertEqual(self.author1, self.author2)
-#         self.assertEqual(self.post1, self.post2)
-#         self.assertEqual(self.author1, Author())
-#
-#     def test_table(self):
-#         self.assertEqual(self.author1.objects.table_name, 'author')
-#         self.assertEqual(self.author1.__table_name__, self.author2.objects.table_name)
-#         self.assertEqual(self.post1.objects.table_name, 'post')
-#         self.assertEqual(self.post2.objects.table_name, Post.__table_name__)
-#         self.assertEqual(self.post1.objects._get_primary_key_field(), '_pk')
-#         self.assertEqual(self.author1.objects._get_primary_key_field(), 'author_id')
-#         self.assertEqual(self.author1.objects._get_primary_key_field(), Author.objects._get_primary_key_field())
-#         self.assertEqual(self.post2.objects._get_primary_key_field(), Post.objects._get_primary_key_field())
-#         self.assertNotEqual(Author.objects._get_primary_key_field(), Post.objects._get_primary_key_field())
-#
-#         a_fields = ['author_id', 'name', 'age']
-#         p_fields = ['author_id', 'post', '_pk']
-#         self.assertEqual(self.author1.objects._table_fields, a_fields)
-#         self.assertEqual(self.post2.objects._table_fields, p_fields)
-#
-#         author_data = dict(name='Daniel Afriyie', age=25)
-#         id_ = self.author1.objects.create(**author_data)
-#         a_sql = 'INSERT INTO author (name, age) VALUES (?, ?);'
-#         self.assertEqual(
-#             self.author1.objects._db_mapper._render_insert_sql_stmt(self.author1.objects.table_name, **author_data)[0],
-#             a_sql
-#         )
-#         self.post1.objects.insert(author_id=id_, post='This is a test post')
-#
-#         with self.assertRaises(InsertError):
-#             self.post1.objects.bulk_insert([1, 'This is a new post'])
-#         with self.assertRaises(InsertError):
-#             self.post1.objects.create(post='This is a new post', wrong_field='wrong field')
-#
-#         self.assertTrue(is_abstract_model(AbstractModel))
-#         self.assertTrue(is_abstract_model(AbstractModel()))
-#         self.assertFalse(is_abstract_model(Author))
-#         self.assertFalse(is_abstract_model(Post))
-#         self.assertFalse(is_abstract_model(self.post2))
-#         self.assertFalse(is_abstract_model(self.author1))
-#
-#     def test_crud_operations(self):
-#         self.author1.objects.bulk_insert(
-#             dict(name='Daniel Afriyie', age=25),
-#             dict(name='David Afriyie', age=32),
-#             dict(name='John Afriyie', age=43),
-#             dict(name='Yaw Afriyie', age=12),
-#             dict(name='Jesus Afriyie', age=90)
-#         )
-#         self.post2.objects.bulk_insert(
-#             dict(author_id=1, post='This is post 1'),
-#             dict(author_id=2, post='This is post 1'),
-#             dict(author_id=3, post='This is post 1'),
-#             dict(author_id=4, post='This is post 1')
-#         )
-#
-#         a1 = self.author1.objects.get(name='Daniel Afriyie', age=25)
-#         a2 = self.author1.objects.get(name='David Afriyie', age=32)
-#         a3 = self.author1.objects.get(name='John Afriyie', age=43)
-#         self.assertEqual(a1.name, 'Daniel Afriyie')
-#         self.assertEqual(a2.age, 32)
-#         self.assertEqual(a3.name, 'John Afriyie')
-#
-#         p1 = self.post2.objects.get(author_id=a1.author_id)
-#         self.assertEqual(p1.author_id, a1.author_id)
-#
-#         a3.update(name='John New Update')
-#         a4 = self.author1.objects.get(name='John New Update')
-#         self.assertEqual(a4.name, 'John New Update')
-#
-#         with self.assertRaises(ModelDoesNotExist):
-#             self.post1.objects.get(author_id=990)
-#             self.author1.objects.get(author_id=999)
-#
-#         qs = self.post2.objects.all()
-#         self.assertIsInstance(qs, map)
-#         for query in qs:
-#             self.assertIsInstance(query, model.QuerySet)
+class TestModels(BaseTestClass):
 
+    def test_model_meta(self):
+        self.assertTrue(hasattr(self.Dog, '__mappings__'))
+        self.assertTrue(hasattr(self.Dog, '__table_name__'))
+        self.assertTrue(hasattr(self.Dog, '_meta'))
+        self.assertTrue(hasattr(self.Dog, 'objects'))
+        self.assertTrue(hasattr(self.DogAudit, 'objects'))
+        self.assertTrue(hasattr(self.Dog(), '__mappings__'))
+        self.assertTrue(hasattr(self.Dog(), '__table_name__'))
+        self.assertTrue(hasattr(self.Dog(), '_meta'))
+        self.assertTrue(hasattr(self.DogAudit(), 'objects'))
+        self.assertTrue(hasattr(self.DogAudit(), 'objects'))
+        self.assertTrue(hasattr(self.DogAudit(), '__pk__'))
+        self.assertTrue(hasattr(self.DogAudit(), '__pk__'))
+        self.assertFalse(is_abstract_model(self.Dog))
+        self.assertFalse(is_abstract_model(self.DogAudit))
+        self.assertTrue(is_abstract_model(self.AbstractModel))
 
-# class TestQuery(unittest.TestCase):
-#
-#     @classmethod
-#     def setUpClass(cls) -> None:
-#         cls.author = Author()
-#
-#     def test_query(self):
-#         self.author.objects.bulk_insert(
-#             dict(name='Daniel Afriyie', age=25),
-#             dict(name='David Afriyie', age=32),
-#             dict(name='John Afriyie', age=43),
-#             dict(name='Yaw Afriyie', age=12),
-#             dict(name='Jesus Afriyie', age=90)
-#         )
-#
-#         with self.assertRaises(QueryError):
-#             self.author.objects.select(['author_idf', 'name', 'age'])
-#
-#         query = self.author.objects.select(['author_id', 'name', 'age'])
-#         self.assertIsInstance(query, model.BaseQuery)
-#         self.assertIsInstance(query.get_data, list)
-#         self.assertEqual(query.state, 'select')
-#         query = query.where(age=25, name='David Afriyie')
-#         self.assertEqual(query.state, 'where')
-#
-#         with self.assertRaises(QueryError):
-#             query._fields = None
-#             query.where(age=20)
-#
-#         data = self.author.objects.select(['*']).get_data
-#         query = model.Query(data, self.author.objects.table_name)
-#         self.assertIsInstance(query.get_data, list)
-#         self.assertIsInstance(query, model.BaseQuery)
-#
-#         with self.assertRaises(QueryError):
-#             query.where(name='Test Name')
-#             query.bulk_update(name='Yaw')
+        for key in self.Dog.__mappings__.keys():
+            self.assertFalse(hasattr(self.Dog, key))
+
+        for key in self.DogAudit.__mappings__.keys():
+            self.assertFalse(hasattr(self.DogAudit, key))
+
+    def test_single_instance(self):
+        self.assertEqual(self.Dog(), self.Dog())
+        self.assertEqual(self.DogAudit(), self.DogAudit())
+
+    def test_table(self):
+        self.assertEqual(self.Dog.objects.table_name, 'dog')
+        self.assertEqual(self.DogAudit.objects.table_name, 'dogaudit')
+        self.assertEqual(self.Dog.objects._primary_key_field, 'pk')
+        self.assertEqual(self.DogAudit.objects._primary_key_field, 'pk')
+
+        dog_fields = sorted(['name', 'age', 'pk'])
+        dog_audit_fields = sorted(['name', 'age', 'dog_id', 'action', 'pk'])
+        self.assertEqual(sorted(self.Dog.objects._table_fields), dog_fields)
+        self.assertEqual(sorted(self.DogAudit.objects._table_fields), dog_audit_fields)
+
+    def test_crud_operations(self):
+        self.Dog.objects.bulk_insert(
+            dict(name='Dog1', age=25),
+            dict(name='Dog2', age=32),
+            dict(name='Dog3', age=43),
+            dict(name='Dog4', age=12),
+            dict(name='Dog5', age=90)
+        )
+
+        d1 = self.Dog.objects.get(name='Dog1', age=25)
+        d2 = self.Dog.objects.get(name='Dog2', age=32)
+        d3 = self.Dog.objects.get(name='Dog3', age=43)
+        self.assertEqual(d1.name, 'Dog1')
+        self.assertEqual(d2.age, 32)
+        self.assertEqual(d3.name, 'Dog3')
+
+        with self.assertRaises(ModelDoesNotExist):
+            self.Dog.objects.get(pk=990)
+            self.Dog.objects.get(pk=999)
+
+        qs = self.Dog.objects.all()
+        self.assertIsInstance(qs, map)
+        for query in qs:
+            self.assertIsInstance(query, QuerySet)
 
 
 if __name__ == '__main__':
