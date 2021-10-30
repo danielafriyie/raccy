@@ -7,10 +7,16 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(BASE_DIR)
 
 from raccy import DatabaseQueue, ItemUrlQueue
-from raccy.core.exceptions import QueueError
+from raccy.core.exceptions import QueueError, SignalException
+from raccy.core.utils import abstractmethod
+from raccy.core.signals import receiver, Signal
 
 
-class QueueTests(unittest.TestCase):
+class BaseTestClass(unittest.TestCase):
+    pass
+
+
+class TestQueue(BaseTestClass):
 
     @classmethod
     def setUpClass(cls):
@@ -81,6 +87,27 @@ class QueueTests(unittest.TestCase):
         self.assertNotEqual(self.ds1.queue(), self.is2.queue())
         self.assertNotEqual(self.ds2.queue(), self.is1.queue())
         self.assertNotEqual(self.ds2.queue(), self.is2.queue())
+
+
+class TestAbstractMethod(BaseTestClass):
+
+    def test_abstract_method(self):
+        class Foo:
+
+            @abstractmethod
+            def bar(self):
+                pass
+
+        f = Foo()
+        with self.assertRaises(NotImplementedError):
+            f.bar()
+
+
+class TestSignals(BaseTestClass):
+
+    @classmethod
+    def setUpClass(cls):
+        pass
 
 
 if __name__ == '__main__':
