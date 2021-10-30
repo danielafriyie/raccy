@@ -1,6 +1,7 @@
 import unittest
 import os
 import sys
+from textwrap import dedent
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(BASE_DIR)
@@ -9,17 +10,36 @@ from raccy import model
 from raccy.orm.utils import is_abstract_model
 from raccy.core.exceptions import InsertError, QueryError, ModelDoesNotExist, ImproperlyConfigured
 from raccy.orm.base import AttrDict, BaseSQLDbMapper
+from raccy.orm.orm import Field
 
 
-class BastTestClass(unittest.TestCase):
+class BaseTestClass(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         config = model.Config()
         config.DATABASE = model.SQLiteDatabase(':memory:')
 
+        class AbstractModel(model.Model):
+            name = model.CharField()
+            age = model.IntegerField()
 
-class TestAttrDict(BastTestClass):
+            class Meta:
+                abstract = True
+
+        class Dog(AbstractModel):
+            pass
+
+        class DogAudit(AbstractModel):
+            dog_id = model.IntegerField()
+            action = model.CharField()
+
+        cls.Dog = Dog
+        cls.DogAudit = DogAudit
+        cls.AbstractModel = AbstractModel
+
+
+class TestAttrDict(BaseTestClass):
 
     @classmethod
     def setUpClass(cls):
@@ -45,7 +65,7 @@ class TestAttrDict(BastTestClass):
             self.attrdict.you = 'I am you!'
 
 
-class TestConfig(BastTestClass):
+class TestConfig(BaseTestClass):
 
     @classmethod
     def setUpClass(cls):
@@ -78,62 +98,63 @@ class TestConfig(BastTestClass):
             config.DATABASE = None
 
     def test_getattribute(self):
-        config = model.Config()
+        c = model.Config()
 
         with self.assertRaises(ImproperlyConfigured):
-            config.DATABASE
+            c.DATABASE
 
         with self.assertRaises(ImproperlyConfigured):
-            config.DBMAPPER
+            c.DBMAPPER
 
 
-# class TestSQLiteModelFields(unittest.TestCase):
-#
-#     def _test_field(self, field, type_, sql, *field_args, **field_kwargs):
-#         f = field(*field_args, **field_kwargs)
-#         self.assertEqual(type_, f._type)
-#         self.assertEqual(sql, f.sql)
-#         self.assertIsInstance(f, model.Field)
-#
-#     def test_primary_key_field(self):
-#         self._test_field(model.PrimaryKeyField, 'INTEGER PRIMARY KEY AUTOINCREMENT',
-#                          'INTEGER PRIMARY KEY AUTOINCREMENT')
-#
-#     def test_charfield(self):
-#         self._test_field(model.CharField, 'VARCHAR', 'VARCHAR (60)', max_length=60)
-#
-#     def test_textfield(self):
-#         self._test_field(model.TextField, 'TEXT', 'TEXT NOT NULL', null=False)
-#
-#     def test_integerfield(self):
-#         self._test_field(model.IntegerField, 'INTEGER', 'INTEGER')
-#         self._test_field(model.IntegerField, 'INTEGER', 'INTEGER DEFAULT 150', default=150)
-#
-#     def test_floatfield(self):
-#         self._test_field(model.FloatField, 'DOUBLE', 'DOUBLE')
-#         self._test_field(model.FloatField, 'DOUBLE', 'DOUBLE DEFAULT 150', default=150)
-#
-#     def test_booleanfield(self):
-#         self._test_field(model.BooleanField, 'BOOLEAN', 'BOOLEAN')
-#         self._test_field(model.BooleanField, 'BOOLEAN', 'BOOLEAN DEFAULT FALSE', default='FALSE')
-#
-#     def test_datefield(self):
-#         self._test_field(model.DateField, 'DATE', 'DATE')
-#
-#     def test_datetimefield(self):
-#         self._test_field(model.DateTimeField, 'DATETIME', 'DATETIME')
-#
-#     def test_foreign_key_field(self):
-#         self._test_field(model.ForeignKeyField, 'INTEGER', 'INTEGER NOT NULL', model=Author, on_field='author_id')
-#         fk = model.ForeignKeyField(Author, 'author_id')
-#         fk_sql = f"""
-#             FOREIGN KEY (fk)
-#             REFERENCES {Author.objects.table_name} (author_id)
-#                 ON UPDATE CASCADE
-#                 ON DELETE CASCADE
-#         """
-#         self.assertEqual(fk_sql, fk._foreign_key_sql('fk'))
-#
+class TestSQLiteModelFields(BaseTestClass):
+
+    def _test_field(self, field, type_, sql, *field_args, **field_kwargs):
+        f = field(*field_args, **field_kwargs)
+        self.assertEqual(type_, f._type)
+        self.assertEqual(sql, f.sql)
+        self.assertIsInstance(f, Field)
+
+    def test_primary_key_field(self):
+        self._test_field(model.PrimaryKeyField, 'INTEGER PRIMARY KEY AUTOINCREMENT',
+                         'INTEGER PRIMARY KEY AUTOINCREMENT')
+
+    def test_charfield(self):
+        self._test_field(model.CharField, 'VARCHAR', 'VARCHAR (60)', max_length=60)
+
+    def test_textfield(self):
+        self._test_field(model.TextField, 'TEXT', 'TEXT NOT NULL', null=False)
+
+    def test_integerfield(self):
+        self._test_field(model.IntegerField, 'INTEGER', 'INTEGER')
+        self._test_field(model.IntegerField, 'INTEGER', 'INTEGER DEFAULT 150', default=150)
+
+    def test_floatfield(self):
+        self._test_field(model.FloatField, 'DOUBLE', 'DOUBLE')
+        self._test_field(model.FloatField, 'DOUBLE', 'DOUBLE DEFAULT 150', default=150)
+
+    def test_booleanfield(self):
+        self._test_field(model.BooleanField, 'BOOLEAN', 'BOOLEAN')
+        self._test_field(model.BooleanField, 'BOOLEAN', 'BOOLEAN DEFAULT FALSE', default='FALSE')
+
+    def test_datefield(self):
+        self._test_field(model.DateField, 'DATE', 'DATE')
+
+    def test_datetimefield(self):
+        self._test_field(model.DateTimeField, 'DATETIME', 'DATETIME')
+
+    def test_foreign_key_field(self):
+        self._test_field(model.ForeignKeyField, 'INTEGER', 'INTEGER NOT NULL', model=self.Dog, on_field='pk')
+        fk = model.ForeignKeyField(self.Dog, 'pk')
+        fk_sql = f"""
+            FOREIGN KEY (fk)
+            REFERENCES {self.Dog.objects.table_name} (pk) 
+                ON UPDATE CASCADE
+                ON DELETE CASCADE
+        """
+        self.assertEqual(dedent(fk_sql), fk._foreign_key_sql('fk'))
+
+
 #
 # class TestModels(unittest.TestCase):
 #
