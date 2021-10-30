@@ -22,10 +22,11 @@ from selenium.common.exceptions import WebDriverException
 
 from raccy.core.meta import SingletonMeta
 from raccy.core.queue_ import DatabaseQueue, ItemUrlQueue
-from raccy.utils.driver import close_driver, next_btn_handler, driver_wait
-from raccy.logger.logger import logger
 from raccy.core.exceptions import CrawlerException
+from raccy.core.utils import abstractmethod
+from raccy.utils.driver import close_driver, next_btn_handler, driver_wait
 from raccy.utils.utils import download_image, download
+from raccy.logger.logger import logger
 
 
 ##################################
@@ -77,6 +78,7 @@ class Manager(metaclass=SingletonMeta):
         """
         if not hasattr(self, '_driver'):
             raise CrawlerException(f'{self.__class__.__name__}: driver not added!')
+
         wks = []
         uw = self.uw
         cw = self.cw
@@ -195,8 +197,9 @@ class UrlDownloaderWorker(BaseCrawlerWorker, metaclass=SingletonMeta):
 
         return super().follow(xpath=xpath, url=url, callback=callback, *cbargs, **cbkwargs)
 
+    @abstractmethod
     def job(self):
-        raise NotImplementedError(f"{self.__class__.__name__}.job() method is not implemented")
+        pass
 
     def run(self):
         try:
@@ -235,8 +238,9 @@ class CrawlerWorker(BaseCrawlerWorker):
         except Empty:
             pass
 
+    @abstractmethod
     def parse(self, url: str) -> None:
-        raise NotImplementedError(f"{self.__class__.__name__}.parse() method is not implemented")
+        pass
 
 
 class DatabaseWorker(BaseWorker, metaclass=SingletonMeta):
@@ -249,8 +253,9 @@ class DatabaseWorker(BaseWorker, metaclass=SingletonMeta):
     def __init_subclass__(cls, **kwargs):
         cls._manager.register_worker('dw', cls)
 
+    @abstractmethod
     def save(self, data: dict) -> None:
-        raise NotImplementedError(f"{self.__class__.__name__}.save() method is not implemented!")
+        pass
 
     def job(self):
         try:
