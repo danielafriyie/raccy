@@ -11,6 +11,8 @@ from raccy.orm.utils import is_abstract_model
 from raccy.core.exceptions import InsertError, QueryError, ModelDoesNotExist, ImproperlyConfigured
 from raccy.orm.base import AttrDict, BaseSQLDbMapper
 from raccy.orm.orm import Field
+from raccy.orm.signals import before_insert, after_insert, before_update, after_update, before_delete, after_delete
+from raccy.core.signals import receiver
 
 
 class BaseTestClass(unittest.TestCase):
@@ -155,15 +157,131 @@ class TestSQLiteModelFields(BaseTestClass):
         self.assertEqual(dedent(fk_sql), fk._foreign_key_sql('fk'))
 
 
-#
+class TestModelSignals(BaseTestClass):
+
+    def test_before_and_after_insert(self):
+        self.var = None
+
+        @receiver(before_insert, self.Dog)
+        def sig_before_insert(instance):
+            if instance.age < 10:
+                raise ValueError("Dog cannot be less than 10 years old")
+            self.var = 'before insert'
+
+        @receiver(after_insert, self.Dog)
+        def sig_after_insert(instance):
+            self.assertEqual(self.var, 'before insert')
+            self.var = 'after insert'
+            self.DogAudit.objects.create(
+                dog_id=instance.pk,
+                name=instance.name,
+                age=instance.age,
+                action='After Insert'
+            )
+
+        with self.assertRaises(ValueError):
+            self.Dog.objects.create(
+                name='Bee',
+                age=8
+            )
+
+        with self.assertRaises(ValueError):
+            dog = self.Dog()
+            dog.objects.create(
+                name='Billy',
+                age=2
+            )
+
+        self.assertIsNone(self.var)
+
+        d1 = dict(name='Dog1', age=12)
+        d2 = dict(name='Dog2', age=32)
+
+        self.Dog.objects.create(**d1)
+        dg1 = self.Dog.objects.get(name='Dog1', age=12)
+        dga1 = self.DogAudit.objects.get(dog_id=dg1.pk, age=dg1.age)
+        self.assertEqual(dg1.name, dga1.name)
+        self.assertEqual(dg1.age, dga1.age)
+        self.assertEqual(dg1.pk, dga1.dog_id)
+
+        self.Dog.objects.create(**d2)
+        dg2 = self.Dog.objects.get(name='Dog2', age=32)
+        dga2 = self.DogAudit.objects.get(dog_id=dg2.pk, age=dg2.age)
+        self.assertEqual(dg2.name, dga2.name)
+        self.assertEqual(dg2.age, dga2.age)
+        self.assertEqual(dg2.pk, dga2.dog_id)
+
+        self.assertEqual(self.var, 'after insert')
+
+    def test_before_and_after_update(self):
+        self.var = None
+
+        @receiver(before_update, self.Dog)
+        def sig_before_update(new, old):
+            if old.name == 'Dogu1':
+                raise ValueError('Cannot update Dogu1')
+            if new.age < old.age:
+                raise ValueError('New date cannot be less than old age')
+            self.var = 'before update'
+
+        @receiver(after_update, self.Dog)
+        def sig_after_update(new, old):
+            self.assertEqual(self.var, 'before update')
+            self.DogAudit.objects.create(
+                dog_id=new.pk,
+                name=new.name,
+                age=new.age,
+                action='After Update'
+            )
+            self.var = 'after update'
+
+        self.Dog.objects.bulk_insert(
+            dict(name='Dogu1', age=12),
+            dict(name='Dogu2', age=78)
+        )
+        d1 = self.Dog.objects.get(name='Dogu1', age=12)
+        d2 = self.Dog.objects.get(name='Dogu2', age=78)
+        with self.assertRaises(ValueError):
+            d1.update(name='New Name')
+
+        with self.assertRaises(ValueError):
+            d2.update(age=8)
+
+        self.assertIsNone(self.var)
+
+        d2.update(age=99)
+        self.assertEqual(self.var, 'after update')
+        ud = self.Dog.objects.get(name='Dogu2')
+        self.assertEqual(ud.age, 99)
+
+    def test_before_and_after_delete(self):
+        self.var = None
+        self.Dog.objects.bulk_insert(
+            dict(name='Dogd1', age=12),
+            dict(name='Dogd2', age=78)
+        )
+
+        @receiver(after_delete, self.Dog)
+        def sig_after_delete(instance):
+            self.assertEqual(self.var, 'before delete')
+            self.var = 'after delete'
+
+        @receiver(before_delete, self.Dog)
+        def sig_before_delete(instance):
+            if instance.name == 'Dogd1':
+                raise ValueError('Cannot delete Dogd1')
+            self.var = 'before delete'
+
+        with self.assertRaises(ValueError):
+            self.Dog.objects.delete(name='Dogd1')
+
+        self.assertIsNone(self.var)
+
+        self.Dog.objects.delete(name='Dogd2')
+        self.assertEqual(self.var, 'after delete')
+
+
 # class TestModels(unittest.TestCase):
-#
-#     @classmethod
-#     def setUpClass(cls) -> None:
-#         cls.author1 = Author()
-#         cls.author2 = Author()
-#         cls.post1 = Post()
-#         cls.post2 = Post()
 #
 #     def test_model_meta(self):
 #         self.assertTrue(hasattr(self.author1, '__mappings__'))
@@ -264,8 +382,8 @@ class TestSQLiteModelFields(BaseTestClass):
 #         self.assertIsInstance(qs, map)
 #         for query in qs:
 #             self.assertIsInstance(query, model.QuerySet)
-#
-#
+
+
 # class TestQuery(unittest.TestCase):
 #
 #     @classmethod

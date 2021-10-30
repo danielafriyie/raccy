@@ -28,7 +28,7 @@ def execute_or_debug(func):
     def _decorator(self, sender, *args, **kwargs):
         try:
             return func(self, sender, *args, **kwargs)
-        except:
+        except KeyError:
             raise SignalException(f"{self.__class__.__name__} has no registered dispatch <{sender}>")
 
     return _decorator

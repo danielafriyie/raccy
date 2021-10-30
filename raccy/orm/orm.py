@@ -393,6 +393,9 @@ class QuerySet(BaseQuery):
         new.attrs[self._pk_field] = pk
         self._model.objects._dispatch('after_update', new, self)
 
+    def __repr__(self):
+        return str(self._data)
+
 
 ####################################################
 #       MANAGER, AND MODEL CLASS
