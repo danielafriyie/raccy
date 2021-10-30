@@ -24,7 +24,7 @@ from raccy.core.meta import SingletonMeta
 from raccy.core.queue_ import DatabaseQueue, ItemUrlQueue
 from raccy.core.exceptions import CrawlerException
 from raccy.core.utils import abstractmethod
-from raccy.utils.driver import close_driver, next_btn_handler, driver_wait
+from raccy.utils.driver import close_driver, btn_click_handler, driver_wait
 from raccy.utils.utils import download_image, download
 from raccy.logger.logger import logger
 
@@ -159,7 +159,7 @@ class BaseCrawlerWorker(BaseWorker, CrawlerMixin):
                 f"you have to define only one"
             )
         if xpath is not None:
-            next_btn_handler(self.driver, next_btn=xpath)
+            btn_click_handler(self.driver, xpath)
         if url is not None:
             self.driver.get(url)
 
