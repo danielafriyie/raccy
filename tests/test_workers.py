@@ -8,57 +8,49 @@ sys.path.append(BASE_DIR)
 
 from selenium import webdriver
 
-from raccy import UrlDownloaderWorker, DatabaseWorker, CrawlerWorker
+from raccy import UrlDownloaderWorker, DatabaseWorker, CrawlerWorker, WorkersManager
 from raccy.core.exceptions import CrawlerException
 
 
-def get_driver():
-    driver_path = os.path.join(BASE_DIR, 'chromedriver.exe')
-    options = webdriver.ChromeOptions()
-    options.add_argument('--headless')
-    options.add_argument("--start-maximized")
-    driver = webdriver.Chrome(executable_path=driver_path, options=options)
-    return driver
+class BaseTestClass(unittest.TestCase):
 
-
-class Crawler(CrawlerWorker):
-    pass
-
-
-class Db(DatabaseWorker):
-    pass
-
-
-class BaseTest(unittest.TestCase):
-    pass
-
-
-class TestClasses(BaseTest):
-
-    def test_urldownloader_worker(self):
-        class UrlD1(UrlDownloaderWorker):
+    @classmethod
+    def setUpClass(cls):
+        class UW(UrlDownloaderWorker):
             pass
 
-        class UrlD2(UrlDownloaderWorker):
-            start_url = 'start url'
-
-        class Crawler(CrawlerWorker):
+        class Cw(CrawlerWorker):
             pass
 
         class Db(DatabaseWorker):
             pass
 
+        cls.UW = UW
+        cls.Cw = Cw
+        cls.Db = Db
+
+    def get_driver(self):
+        driver_path = os.path.join(BASE_DIR, 'chromedriver.exe')
+        options = webdriver.ChromeOptions()
+        options.add_argument('--headless')
+        options.add_argument("--start-maximized")
+        driver = webdriver.Chrome(executable_path=driver_path, options=options)
+        return driver
+
+
+class TestWorkers(BaseTestClass):
+
+    def test_workers_manager(self):
+        mg = WorkersManager()
+
         with self.assertRaises(CrawlerException):
-            UrlD1(get_driver())
+            mg.start()
 
-        # with self.assertRaises(NotImplementedError):
-        #     w1 = UrlDownloaderWorker(get_driver())
-        #     w2 = Crawler(get_driver())
-        #     w3 = Db()
-        #     w1.start()
-        #     w2.start()
-        #     w3.start()
+        self.assertEqual(mg.dw, self.Db)
+        self.assertEqual(mg.uw, self.UW)
+        self.assertEqual(mg.cw, self.Cw)
 
-        url1, url2 = UrlD2(get_driver()), UrlD2(get_driver())
-        self.assertEqual(url1, url2)
-        self.assertFalse(url1.is_alive())
+    def test_url_downloader(self):
+        with self.assertRaises(CrawlerException):
+            self.UW(self.get_driver())
+
