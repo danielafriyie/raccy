@@ -18,7 +18,7 @@ from .worker.worker import UrlDownloaderWorker, CrawlerWorker, DatabaseWorker, B
 from .worker.worker import Manager as WorkersManager
 from . import orm as model
 
-__version__ = '1.3.0'
+__version__ = '1.3.1'
 
 __all__ = [
     '__version__',
