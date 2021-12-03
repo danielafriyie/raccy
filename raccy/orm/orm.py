@@ -599,7 +599,7 @@ class SQLModelManager(BaseDbManager):
 
         self._dispatch('after_delete', instance)
 
-    @lru_cache(maxsize=1000)
+    # @lru_cache(maxsize=1000)
     def get(self, **kwargs) -> QuerySet:
         """
         Retrieve single row of data from a database.
