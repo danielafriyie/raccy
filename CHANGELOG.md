@@ -2,6 +2,11 @@
 
 Track changes in raccy versions and releases.
 
+### 2.0.0
+- Removed built-in ORM
+- Removed logger module
+- Removed some utility functions
+
 ### 1.3.0
 - Refactored `worker.py` module
 - Added workers manager class

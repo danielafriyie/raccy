@@ -1,3 +1,5 @@
-selenium==3.141.0
+selenium>=3.141.0
 wget==3.2
 requests==2.26.0
+raccy-orm==0.0.1
+raccy-utils==0.1.1

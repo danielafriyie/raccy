@@ -63,7 +63,7 @@ def download_image(url, save_path, mutex=None):
     return img_path
 
 
-def check_path_exists(path: str, isfile=False) -> bool:
+def path_exists(path: str, isfile=False) -> bool:
     return os.path.isfile(path) if isfile else os.path.exists(path)
 
 

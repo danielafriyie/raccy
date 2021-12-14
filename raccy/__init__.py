@@ -16,9 +16,8 @@ limitations under the License.
 from .core.queue_ import ItemUrlQueue, DatabaseQueue
 from .worker.worker import UrlDownloaderWorker, CrawlerWorker, DatabaseWorker, BaseCrawlerWorker
 from .worker.worker import Manager as WorkersManager
-from . import orm as model
 
-__version__ = '1.3.1'
+__version__ = '2.0.0'
 
 __all__ = [
     '__version__',
@@ -28,6 +27,5 @@ __all__ = [
     'UrlDownloaderWorker',
     'CrawlerWorker',
     'DatabaseWorker',
-    'WorkersManager',
-    'model'
+    'WorkersManager'
 ]

@@ -1,10 +1,9 @@
 # RACCY
 
 ### OVERVIEW
-Raccy is a multithreaded web scraping library based on selenium with
-built in Object Relational Mapper (ORM). It can be used for web automation, web scraping, and
-data mining. Currently the ORM feature supports only SQLite Database.
-Some of the features in this library is inspired by Django ORM and Scrapy.
+Raccy is a multithreaded web scraping library based on selenium. 
+It can be used for web automation, web scraping, and
+data mining.
 
 ### REQUIREMENTS
 - Python 3.7+ 
@@ -33,8 +32,9 @@ pip install raccy
 
 ```python
 from raccy import (
-    model, UrlDownloaderWorker, CrawlerWorker, DatabaseWorker, WorkersManager
+    UrlDownloaderWorker, CrawlerWorker, DatabaseWorker, WorkersManager
 )
+import ro as model
 from selenium import webdriver
 from shutil import which
 

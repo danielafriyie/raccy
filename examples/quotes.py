@@ -1,6 +1,7 @@
 from raccy import (
-    model, UrlDownloaderWorker, CrawlerWorker, DatabaseWorker, WorkersManager
+    UrlDownloaderWorker, CrawlerWorker, DatabaseWorker, WorkersManager
 )
+import ro as model
 from selenium import webdriver
 from shutil import which
 

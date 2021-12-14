@@ -26,7 +26,7 @@ from raccy.core.exceptions import CrawlerException
 from raccy.core.utils import abstractmethod
 from raccy.utils.driver import close_driver, btn_click_handler, driver_wait
 from raccy.utils.utils import download_image, download
-from raccy.logger.logger import logger
+from ru import logger
 
 
 ##################################

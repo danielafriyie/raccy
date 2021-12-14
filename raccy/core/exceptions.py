@@ -34,25 +34,6 @@ class SignalException(ExceptionBase):
 
 
 ########################################
-#       ORM EXCEPTIONS
-#######################################
-class ModelDoesNotExist(ExceptionBase):
-    pass
-
-
-class InsertError(ExceptionBase):
-    pass
-
-
-class QueryError(ExceptionBase):
-    pass
-
-
-class DatabaseException(ExceptionBase):
-    pass
-
-
-########################################
 #       CRAWLER EXCEPTIONS
 #######################################
 class CrawlerException(ExceptionBase):
